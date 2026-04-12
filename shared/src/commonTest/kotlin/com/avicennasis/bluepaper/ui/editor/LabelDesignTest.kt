@@ -8,15 +8,13 @@ class LabelDesignTest {
     @Test
     fun roundTripSerialization() {
         val design = LabelDesign(
-            text = "Hello\nWorld",
-            fontSize = 32f,
             model = "b21",
             labelWidthMm = 50.0,
             labelHeightMm = 30.0,
             density = 5,
             quantity = 3,
-            imageTransform = SerializableImageTransform(
-                offsetX = 10f, offsetY = 20f, scale = 1.5f, rotation = 90f, flipH = true, flipV = false,
+            elements = listOf(
+                SerializableLabelElement(type = "text", id = "t1", x = 10f, y = 20f, text = "Hello\nWorld", fontSize = 32f, fontFamily = "default"),
             ),
         )
 
@@ -36,8 +34,8 @@ class LabelDesignTest {
 
     @Test
     fun ignoresUnknownFields() {
-        val json = """{"text":"Test","fontSize":24.0,"model":"d110","unknownField":"value","labelWidthMm":30.0,"labelHeightMm":15.0,"density":3,"quantity":1,"imageTransform":{}}"""
+        val json = """{"version":2,"model":"d110","unknownField":"value","labelWidthMm":30.0,"labelHeightMm":15.0,"density":3,"quantity":1,"elements":[]}"""
         val design = LabelDesign.fromJson(json)
-        assertEquals("Test", design.text)
+        assertEquals("d110", design.model)
     }
 }

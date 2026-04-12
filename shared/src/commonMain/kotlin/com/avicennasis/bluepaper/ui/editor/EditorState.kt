@@ -128,8 +128,8 @@ class EditorState(
     )
 
     fun loadDesign(design: LabelDesign) {
-        _labelText.value = design.text
-        _fontSize.value = design.fontSize
+        _labelText.value = design.text ?: ""
+        _fontSize.value = design.fontSize ?: 24f
         selectModel(design.model)
         val matchingSize = _selectedModel.value.labelSizes.find {
             it.widthMm == design.labelWidthMm && it.heightMm == design.labelHeightMm
@@ -137,7 +137,7 @@ class EditorState(
         if (matchingSize != null) _selectedLabelSize.value = matchingSize
         _density.value = design.density
         _quantity.value = design.quantity
-        _imageTransform.value = design.imageTransform.toImageTransform()
+        _imageTransform.value = design.imageTransform?.toImageTransform() ?: ImageTransform()
     }
 
     fun print(imageRows: List<ByteArray>, width: Int, height: Int) {

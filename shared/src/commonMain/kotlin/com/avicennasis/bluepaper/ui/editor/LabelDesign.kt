@@ -3,20 +3,19 @@ package com.avicennasis.bluepaper.ui.editor
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/**
- * Serializable label design — everything needed to recreate a label.
- * Image data is NOT serialized (too large) — only text and transforms.
- */
 @Serializable
 data class LabelDesign(
-    val text: String = "",
-    val fontSize: Float = 24f,
+    val version: Int = 1,
     val model: String = "d110",
     val labelWidthMm: Double = 30.0,
     val labelHeightMm: Double = 15.0,
     val density: Int = 3,
     val quantity: Int = 1,
-    val imageTransform: SerializableImageTransform = SerializableImageTransform(),
+    val elements: List<SerializableLabelElement> = emptyList(),
+    // v1 compat fields (read for migration, not written in v2)
+    val text: String? = null,
+    val fontSize: Float? = null,
+    val imageTransform: SerializableImageTransform? = null,
 ) {
     companion object {
         private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
@@ -24,6 +23,48 @@ data class LabelDesign(
         fun toJson(design: LabelDesign): String = json.encodeToString(serializer(), design)
 
         fun fromJson(jsonString: String): LabelDesign = json.decodeFromString(serializer(), jsonString)
+    }
+
+    fun migrateToV2(): LabelDesign {
+        if (version >= 2 || elements.isNotEmpty()) return this
+
+        val migrated = mutableListOf<SerializableLabelElement>()
+
+        if (text != null && text.isNotEmpty()) {
+            migrated.add(
+                SerializableLabelElement(
+                    type = "text",
+                    id = "migrated_text",
+                    x = 8f,
+                    y = 8f,
+                    text = text,
+                    fontSize = fontSize ?: 24f,
+                    fontFamily = "default",
+                ),
+            )
+        }
+
+        imageTransform?.let { transform ->
+            val hasImage = transform.offsetX != 0f || transform.offsetY != 0f ||
+                transform.scale != 1f || transform.rotation != 0f ||
+                transform.flipH || transform.flipV
+            if (hasImage) {
+                migrated.add(
+                    SerializableLabelElement(
+                        type = "image",
+                        id = "migrated_image",
+                        x = transform.offsetX,
+                        y = transform.offsetY,
+                        rotation = transform.rotation,
+                        scale = transform.scale,
+                        flipH = transform.flipH,
+                        flipV = transform.flipV,
+                    ),
+                )
+            }
+        }
+
+        return copy(version = 2, elements = migrated, text = null, fontSize = null, imageTransform = null)
     }
 }
 
