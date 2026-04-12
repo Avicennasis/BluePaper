@@ -331,7 +331,175 @@ qrose is KMP-native (all platforms). ZXing is JVM-only (desktop + Android).
 - BarcodeRenderer: render with invalid data → verify null return
 - Full pipeline: BarcodeElement → LabelCanvas → MonochromeEncoder → verify 1-bit output
 
-## 9. Out of Scope
+## 9. Data Standards
+
+### Overview
+
+Barcode format (symbology) is separate from data standard (encoding scheme). Each format supports a "Raw Text" default plus format-specific structured data standards. When a data standard is selected, the properties panel shows structured fields instead of a raw text input, and the data is auto-encoded into the correct format string.
+
+### DataStandard Enum
+
+```kotlin
+enum class DataStandard(
+    val displayName: String,
+    val description: String,
+    val applicableFormats: Set<BarcodeFormat>,
+) {
+    RAW_TEXT("Raw Text", "Plain text data", BarcodeFormat.entries.toSet()),
+
+    // QR Code standards
+    VCARD("vCard", "Contact card (name, phone, email, address)", setOf(BarcodeFormat.QR_CODE)),
+    URL("URL", "Web link", setOf(BarcodeFormat.QR_CODE)),
+    WIFI("WiFi", "Network credentials (SSID, password, encryption)", setOf(BarcodeFormat.QR_CODE)),
+    MECARD("MeCard", "Simplified contact (name, phone, email)", setOf(BarcodeFormat.QR_CODE)),
+    SMS("SMS", "Pre-composed text message", setOf(BarcodeFormat.QR_CODE)),
+    EMAIL("Email", "Pre-composed email", setOf(BarcodeFormat.QR_CODE)),
+    PHONE("Phone", "Phone number", setOf(BarcodeFormat.QR_CODE)),
+    GEO("Geo Location", "GPS coordinates", setOf(BarcodeFormat.QR_CODE)),
+
+    // PDF417 standards
+    AAMVA("AAMVA", "Driver's license / ID card data", setOf(BarcodeFormat.PDF_417)),
+
+    // Code 128 / Data Matrix standards
+    GS1_128("GS1-128", "Supply chain with Application Identifiers", setOf(BarcodeFormat.CODE_128)),
+    GS1_DATAMATRIX("GS1 DataMatrix", "Product identification with AIs", setOf(BarcodeFormat.DATA_MATRIX)),
+    HIBC("HIBC", "Health Industry Bar Code", setOf(BarcodeFormat.DATA_MATRIX, BarcodeFormat.CODE_128)),
+}
+```
+
+### Structured Field Definitions
+
+Each data standard defines its fields:
+
+```kotlin
+data class DataField(
+    val key: String,
+    val label: String,
+    val required: Boolean = false,
+    val hint: String = "",
+    val keyboardType: FieldType = FieldType.TEXT,
+)
+
+enum class FieldType { TEXT, NUMBER, EMAIL, PHONE, URL }
+```
+
+**vCard fields:** First Name, Last Name*, Organization, Title, Phone*, Email*, Street, City, State, Zip, Country, URL, Note
+
+**WiFi fields:** SSID*, Password, Encryption Type (WPA/WPA2/WEP/None)*
+
+**MeCard fields:** Name*, Phone*, Email, URL, Address, Note
+
+**SMS fields:** Phone Number*, Message
+
+**Email fields:** Address*, Subject, Body
+
+**Phone fields:** Number*
+
+**Geo fields:** Latitude*, Longitude*
+
+**URL fields:** URL*
+
+**AAMVA fields:** First Name*, Last Name*, DOB*, License Number*, Street, City*, State*, Zip*, Country, Sex, Height, Weight, Eye Color, Hair Color, Expiration Date
+
+**GS1-128 fields:** GTIN (AI 01), Batch/Lot (AI 10), Serial (AI 21), Use By (AI 17), Count (AI 30) — user can add arbitrary AI entries
+
+**GS1 DataMatrix fields:** Same AI structure as GS1-128
+
+**HIBC fields:** LIC (Labeler ID Code)*, PCN (Product/Catalog Number)*, Unit of Measure, Quantity
+
+Fields marked * are required.
+
+### Data Encoders
+
+```kotlin
+interface DataEncoder {
+    fun encode(fields: Map<String, String>): String
+    fun decode(data: String): Map<String, String>
+    fun fields(): List<DataField>
+}
+```
+
+Each data standard has a concrete encoder:
+
+**vCard encoder** → RFC 6350 format:
+```
+BEGIN:VCARD
+VERSION:3.0
+N:Last;First
+FN:First Last
+ORG:Organization
+TEL:+1234567890
+EMAIL:user@example.com
+END:VCARD
+```
+
+**WiFi encoder:**
+```
+WIFI:T:WPA;S:MyNetwork;P:MyPassword;;
+```
+
+**MeCard encoder:**
+```
+MECARD:N:Last,First;TEL:+1234567890;EMAIL:user@example.com;;
+```
+
+**SMS encoder:** `smsto:+1234567890:Message text`
+
+**Email encoder:** `mailto:user@example.com?subject=Subject&body=Body`
+
+**Phone encoder:** `tel:+1234567890`
+
+**Geo encoder:** `geo:40.7128,-74.0060`
+
+**URL encoder:** Pass through (validate URL format)
+
+**AAMVA encoder:** ANSI 636 format with header + subfile structure (compliant with AAMVA CDS v10)
+
+**GS1-128 encoder:** FNC1 prefix + AI code + data (e.g., `(01)09521234543213(17)260401(10)ABC123`)
+
+**GS1 DataMatrix encoder:** Same AI encoding as GS1-128, FNC1 prefix
+
+**HIBC encoder:** `+LIC/PCN/UOM/QTY` format per HIBC standard
+
+### BarcodeElement Update
+
+```kotlin
+data class BarcodeElement(
+    override val id: String,
+    override val x: Float = 0f,
+    override val y: Float = 0f,
+    override val width: Float = 100f,
+    override val height: Float = 100f,
+    override val rotation: Float = 0f,
+    val data: String = "",
+    val format: BarcodeFormat = BarcodeFormat.QR_CODE,
+    val errorCorrection: ErrorCorrection = ErrorCorrection.M,
+    val dataStandard: DataStandard = DataStandard.RAW_TEXT,
+    val structuredData: Map<String, String> = emptyMap(),
+) : LabelElement()
+```
+
+When `dataStandard` is `RAW_TEXT`, `data` is used directly. Otherwise, `structuredData` holds the field values and the encoder generates `data` from them.
+
+### Serialization Update
+
+Add to SerializableLabelElement:
+```kotlin
+val dataStandard: String? = null,
+val structuredData: Map<String, String>? = null,
+```
+
+### Properties Panel Behavior
+
+When a BarcodeElement is selected:
+1. Format dropdown → sets `format`
+2. Data Standard dropdown → filters to `applicableFormats` for the selected format. Defaults to RAW_TEXT.
+3. If RAW_TEXT: show single text input for `data`
+4. If structured standard: show form fields from `DataEncoder.fields()`. Auto-encode on field change.
+5. Error correction dropdown (QR only)
+6. Validation status indicator
+
+## 10. Out of Scope
 
 - Barcode scanning / reading (this is generation only)
 - Custom barcode colors (barcodes must be black-on-white for thermal printing)
