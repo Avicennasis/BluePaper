@@ -32,12 +32,13 @@ class EditorState(
     private val scope: CoroutineScope,
 ) {
     private val client = PrinterClient(transport)
+    val undoManager = UndoManager()
 
-    private val _labelText = MutableStateFlow("Hello")
-    val labelText: StateFlow<String> = _labelText
+    private val _elements = MutableStateFlow<List<LabelElement>>(emptyList())
+    val elements: StateFlow<List<LabelElement>> = _elements
 
-    private val _fontSize = MutableStateFlow(24f)
-    val fontSize: StateFlow<Float> = _fontSize
+    private val _selectedElementId = MutableStateFlow<String?>(null)
+    val selectedElementId: StateFlow<String?> = _selectedElementId
 
     private val _selectedModel = MutableStateFlow(DeviceRegistry.get("d110")!!)
     val selectedModel: StateFlow<DeviceConfig> = _selectedModel
@@ -51,17 +52,176 @@ class EditorState(
     private val _quantity = MutableStateFlow(1)
     val quantity: StateFlow<Int> = _quantity
 
-    private val _importedImage = MutableStateFlow<ImageBitmap?>(null)
-    val importedImage: StateFlow<ImageBitmap?> = _importedImage
-
-    private val _imageTransform = MutableStateFlow(ImageTransform())
-    val imageTransform: StateFlow<ImageTransform> = _imageTransform
-
     private val _printProgress = MutableStateFlow(PrintProgress(0, 0, false))
     val printProgress: StateFlow<PrintProgress> = _printProgress
 
-    fun setLabelText(text: String) { _labelText.value = text }
-    fun setFontSize(size: Float) { _fontSize.value = size }
+    private val _gridSize = MutableStateFlow(DEFAULT_GRID_SIZE)
+    val gridSize: StateFlow<Float> = _gridSize
+
+    private val _showGrid = MutableStateFlow(false)
+    val showGrid: StateFlow<Boolean> = _showGrid
+
+    private val _canUndo = MutableStateFlow(false)
+    val canUndo: StateFlow<Boolean> = _canUndo
+
+    private val _canRedo = MutableStateFlow(false)
+    val canRedo: StateFlow<Boolean> = _canRedo
+
+    private fun updateUndoState() {
+        _canUndo.value = undoManager.canUndo
+        _canRedo.value = undoManager.canRedo
+    }
+
+    private fun saveUndoSnapshot() {
+        undoManager.save(_elements.value)
+        updateUndoState()
+    }
+
+    fun undo() {
+        val restored = undoManager.undo(_elements.value) ?: return
+        _elements.value = restored
+        updateUndoState()
+    }
+
+    fun redo() {
+        val restored = undoManager.redo(_elements.value) ?: return
+        _elements.value = restored
+        updateUndoState()
+    }
+
+    fun selectElement(id: String?) { _selectedElementId.value = id }
+
+    fun selectedElement(): LabelElement? =
+        _elements.value.find { it.id == _selectedElementId.value }
+
+    private var nextId = 0
+    private fun newId(prefix: String) = "${prefix}_${nextId++}"
+
+    fun addTextElement() {
+        saveUndoSnapshot()
+        val el = LabelElement.TextElement(id = newId("text"))
+        _elements.value = _elements.value + el
+        _selectedElementId.value = el.id
+    }
+
+    fun addImageElement(bitmap: ImageBitmap) {
+        saveUndoSnapshot()
+        val el = LabelElement.ImageElement(
+            id = newId("img"),
+            width = bitmap.width.toFloat(),
+            height = bitmap.height.toFloat(),
+            bitmap = bitmap,
+        )
+        _elements.value = _elements.value + el
+        _selectedElementId.value = el.id
+    }
+
+    fun removeElement(id: String) {
+        saveUndoSnapshot()
+        _elements.value = _elements.value.filter { it.id != id }
+        if (_selectedElementId.value == id) _selectedElementId.value = null
+    }
+
+    private fun updateElement(id: String, transform: (LabelElement) -> LabelElement) {
+        _elements.value = _elements.value.map { if (it.id == id) transform(it) else it }
+    }
+
+    fun moveElement(id: String, x: Float, y: Float) {
+        updateElement(id) { el ->
+            when (el) {
+                is LabelElement.TextElement -> el.copy(x = x, y = y)
+                is LabelElement.ImageElement -> el.copy(x = x, y = y)
+            }
+        }
+    }
+
+    fun moveElementDone(id: String) { saveUndoSnapshot() }
+
+    fun resizeElement(id: String, width: Float, height: Float) {
+        val w = width.coerceAtLeast(MIN_ELEMENT_SIZE)
+        val h = height.coerceAtLeast(MIN_ELEMENT_SIZE)
+        updateElement(id) { el ->
+            when (el) {
+                is LabelElement.TextElement -> el.copy(width = w, height = h)
+                is LabelElement.ImageElement -> el.copy(width = w, height = h)
+            }
+        }
+    }
+
+    fun resizeElementDone(id: String) { saveUndoSnapshot() }
+
+    fun setElementPosition(id: String, x: Float, y: Float, width: Float, height: Float) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            when (el) {
+                is LabelElement.TextElement -> el.copy(x = x, y = y, width = width, height = height)
+                is LabelElement.ImageElement -> el.copy(x = x, y = y, width = width, height = height)
+            }
+        }
+    }
+
+    fun setElementRotation(id: String, degrees: Float) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            when (el) {
+                is LabelElement.TextElement -> el.copy(rotation = degrees)
+                is LabelElement.ImageElement -> el.copy(rotation = degrees)
+            }
+        }
+    }
+
+    fun setTextContent(id: String, text: String) {
+        updateElement(id) { el ->
+            if (el is LabelElement.TextElement) el.copy(text = text) else el
+        }
+    }
+
+    fun setTextContentDone(id: String) { saveUndoSnapshot() }
+
+    fun setFontSize(id: String, size: Float) {
+        updateElement(id) { el ->
+            if (el is LabelElement.TextElement) el.copy(fontSize = size) else el
+        }
+    }
+
+    fun setFontSizeDone(id: String) { saveUndoSnapshot() }
+
+    fun setFontFamily(id: String, fontFamily: String) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.TextElement) el.copy(fontFamily = fontFamily) else el
+        }
+    }
+
+    fun setImageScale(id: String, scale: Float) {
+        updateElement(id) { el ->
+            if (el is LabelElement.ImageElement) el.copy(scale = scale.coerceIn(0.1f, 5f)) else el
+        }
+    }
+
+    fun setImageScaleDone(id: String) { saveUndoSnapshot() }
+
+    fun toggleImageFlipH(id: String) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.ImageElement) el.copy(flipH = !el.flipH) else el
+        }
+    }
+
+    fun toggleImageFlipV(id: String) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.ImageElement) el.copy(flipV = !el.flipV) else el
+        }
+    }
+
+    fun rotateImage90(id: String) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.ImageElement) el.copy(rotation = (el.rotation + 90f) % 360f) else el
+        }
+    }
+
     fun setDensity(d: Int) { _density.value = d.coerceIn(1, _selectedModel.value.maxDensity) }
     fun setQuantity(q: Int) { _quantity.value = q.coerceIn(1, 100) }
 
@@ -72,72 +232,40 @@ class EditorState(
         _density.value = _density.value.coerceAtMost(config.maxDensity)
     }
 
-    fun selectLabelSize(size: LabelSize) {
-        _selectedLabelSize.value = size
+    fun selectLabelSize(size: LabelSize) { _selectedLabelSize.value = size }
+
+    fun setGridSize(size: Float) { _gridSize.value = size }
+    fun toggleGrid() { _showGrid.value = !_showGrid.value }
+
+    fun applyTemplate(template: LabelTemplate) {
+        saveUndoSnapshot()
+        val labelSize = _selectedLabelSize.value
+        _elements.value = TemplateManager.applyTemplate(template, labelSize.widthPx, labelSize.heightPx)
+        _selectedElementId.value = null
     }
-
-    // ---- Image Methods ----
-
-    fun setImage(bitmap: ImageBitmap) {
-        _importedImage.value = bitmap
-        _imageTransform.value = ImageTransform() // reset transforms
-    }
-
-    fun clearImage() {
-        _importedImage.value = null
-        _imageTransform.value = ImageTransform()
-    }
-
-    fun setImageOffset(x: Float, y: Float) {
-        _imageTransform.value = _imageTransform.value.copy(offsetX = x, offsetY = y)
-    }
-
-    fun setImageScale(scale: Float) {
-        _imageTransform.value = _imageTransform.value.copy(scale = scale.coerceIn(0.1f, 5f))
-    }
-
-    fun setImageRotation(degrees: Float) {
-        _imageTransform.value = _imageTransform.value.copy(rotation = degrees)
-    }
-
-    fun toggleFlipH() {
-        _imageTransform.value = _imageTransform.value.copy(flipH = !_imageTransform.value.flipH)
-    }
-
-    fun toggleFlipV() {
-        _imageTransform.value = _imageTransform.value.copy(flipV = !_imageTransform.value.flipV)
-    }
-
-    fun rotateImage90() {
-        _imageTransform.value = _imageTransform.value.copy(
-            rotation = (_imageTransform.value.rotation + 90f) % 360f,
-        )
-    }
-
-    // ---- Save/Load ----
 
     fun toDesign(): LabelDesign = LabelDesign(
-        text = _labelText.value,
-        fontSize = _fontSize.value,
+        version = 2,
         model = _selectedModel.value.model,
         labelWidthMm = _selectedLabelSize.value.widthMm,
         labelHeightMm = _selectedLabelSize.value.heightMm,
         density = _density.value,
         quantity = _quantity.value,
-        imageTransform = _imageTransform.value.toSerializable(),
+        elements = _elements.value.map { it.toSerializable() },
     )
 
     fun loadDesign(design: LabelDesign) {
-        _labelText.value = design.text ?: ""
-        _fontSize.value = design.fontSize ?: 24f
-        selectModel(design.model)
+        saveUndoSnapshot()
+        val migrated = design.migrateToV2()
+        selectModel(migrated.model)
         val matchingSize = _selectedModel.value.labelSizes.find {
-            it.widthMm == design.labelWidthMm && it.heightMm == design.labelHeightMm
+            it.widthMm == migrated.labelWidthMm && it.heightMm == migrated.labelHeightMm
         }
         if (matchingSize != null) _selectedLabelSize.value = matchingSize
-        _density.value = design.density
-        _quantity.value = design.quantity
-        _imageTransform.value = design.imageTransform?.toImageTransform() ?: ImageTransform()
+        _density.value = migrated.density
+        _quantity.value = migrated.quantity
+        _elements.value = migrated.elements.map { it.toLabelElement() }
+        _selectedElementId.value = null
     }
 
     fun print(imageRows: List<ByteArray>, width: Int, height: Int) {

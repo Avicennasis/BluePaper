@@ -8,8 +8,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -21,18 +22,20 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.min
 
 @Composable
 fun LabelCanvas(
-    text: String,
-    fontSize: Float,
+    elements: List<LabelElement>,
+    selectedElementId: String?,
     widthPx: Int,
     heightPx: Int,
     textMeasurer: TextMeasurer,
-    importedImage: ImageBitmap? = null,
-    imageTransform: ImageTransform = ImageTransform(),
+    showGrid: Boolean = false,
+    gridSize: Float = DEFAULT_GRID_SIZE,
     modifier: Modifier = Modifier,
 ) {
+    if (widthPx <= 0 || heightPx <= 0) return
     val ratio = widthPx.toFloat() / heightPx.toFloat()
 
     Canvas(
@@ -41,59 +44,149 @@ fun LabelCanvas(
             .aspectRatio(ratio)
             .border(1.dp, MaterialTheme.colorScheme.outline),
     ) {
-        drawLabelContent(this, text, fontSize, textMeasurer, importedImage, imageTransform)
+        val scaleFactor = min(size.width / widthPx, size.height / heightPx)
+
+        drawRect(Color.White)
+
+        if (showGrid && gridSize > 0f) {
+            drawGrid(widthPx, heightPx, gridSize, scaleFactor)
+        }
+
+        for (element in elements) {
+            drawElement(element, scaleFactor, textMeasurer)
+        }
+
+        val selected = elements.find { it.id == selectedElementId }
+        if (selected != null) {
+            drawSelectionBox(selected, scaleFactor)
+            drawResizeHandles(selected, scaleFactor)
+        }
+
         drawRect(Color.LightGray, style = Stroke(1f))
     }
 }
 
-fun drawLabelContent(
-    scope: DrawScope,
-    text: String,
-    fontSize: Float,
+private fun DrawScope.drawElement(
+    element: LabelElement,
+    scaleFactor: Float,
     textMeasurer: TextMeasurer,
-    importedImage: ImageBitmap? = null,
-    imageTransform: ImageTransform = ImageTransform(),
 ) {
-    scope.drawRect(Color.White)
+    when (element) {
+        is LabelElement.TextElement -> drawTextElement(element, scaleFactor, textMeasurer)
+        is LabelElement.ImageElement -> drawImageElement(element, scaleFactor)
+    }
+}
 
-    // Draw imported image with transforms
-    importedImage?.let { img ->
-        scope.withTransform({
-            translate(imageTransform.offsetX, imageTransform.offsetY)
-            rotate(
-                imageTransform.rotation,
-                pivot = Offset(img.width * imageTransform.scale / 2f, img.height * imageTransform.scale / 2f),
-            )
-            scale(
-                scaleX = imageTransform.scale * (if (imageTransform.flipH) -1f else 1f),
-                scaleY = imageTransform.scale * (if (imageTransform.flipV) -1f else 1f),
-                pivot = Offset(img.width * imageTransform.scale / 2f, img.height * imageTransform.scale / 2f),
-            )
-        }) {
-            drawImage(
-                image = img,
-                dstSize = IntSize(
-                    (img.width * imageTransform.scale).toInt(),
-                    (img.height * imageTransform.scale).toInt(),
-                ),
-            )
-        }
+private fun DrawScope.drawTextElement(
+    el: LabelElement.TextElement,
+    scaleFactor: Float,
+    textMeasurer: TextMeasurer,
+) {
+    if (el.text.isEmpty()) return
+
+    val fontFamily = FontRegistry.get(el.fontFamily)
+    val screenX = el.x * scaleFactor
+    val screenY = el.y * scaleFactor
+    val maxWidth = if (el.width > 0f) {
+        (el.width * scaleFactor).toInt().coerceAtLeast(1)
+    } else {
+        (size.width - screenX).toInt().coerceAtLeast(1)
     }
 
-    // Draw text on top of image, wrapping within label bounds
-    if (text.isNotEmpty()) {
-        val padding = 8f
-        val maxWidth = (scope.size.width - padding * 2).toInt().coerceAtLeast(1)
-        val textLayout = textMeasurer.measure(
-            text = text,
-            style = TextStyle(fontSize = fontSize.sp, color = Color.Black),
-            constraints = Constraints(maxWidth = maxWidth),
-            overflow = TextOverflow.Clip,
-            softWrap = true,
+    val textLayout = textMeasurer.measure(
+        text = el.text,
+        style = TextStyle(
+            fontSize = (el.fontSize * scaleFactor).sp,
+            color = Color.Black,
+            fontFamily = fontFamily,
+        ),
+        constraints = Constraints(maxWidth = maxWidth),
+        overflow = TextOverflow.Clip,
+        softWrap = true,
+    )
+
+    drawText(textLayoutResult = textLayout, topLeft = Offset(screenX, screenY))
+}
+
+private fun DrawScope.drawImageElement(
+    el: LabelElement.ImageElement,
+    scaleFactor: Float,
+) {
+    val img = el.bitmap ?: return
+    val screenX = el.x * scaleFactor
+    val screenY = el.y * scaleFactor
+    val displayW = (el.width * scaleFactor * el.scale).toInt()
+    val displayH = (el.height * scaleFactor * el.scale).toInt()
+
+    withTransform({
+        translate(screenX, screenY)
+        if (el.rotation != 0f) {
+            rotate(el.rotation, pivot = Offset(displayW / 2f, displayH / 2f))
+        }
+        scale(
+            scaleX = if (el.flipH) -1f else 1f,
+            scaleY = if (el.flipV) -1f else 1f,
+            pivot = Offset(displayW / 2f, displayH / 2f),
         )
-        scope.drawText(
-            textLayoutResult = textLayout,
-            topLeft = Offset(padding, padding),
-        )
+    }) {
+        drawImage(image = img, dstSize = IntSize(displayW, displayH))
+    }
+}
+
+private fun DrawScope.drawSelectionBox(element: LabelElement, scaleFactor: Float) {
+    val x = element.x * scaleFactor
+    val y = element.y * scaleFactor
+    val w = element.width * scaleFactor
+    val h = element.height * scaleFactor
+
+    drawRect(
+        color = Color(0xFF42A5F5),
+        topLeft = Offset(x, y),
+        size = Size(w, h),
+        style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 4f), 0f)),
+    )
+}
+
+private fun DrawScope.drawResizeHandles(element: LabelElement, scaleFactor: Float) {
+    val x = element.x * scaleFactor
+    val y = element.y * scaleFactor
+    val w = element.width * scaleFactor
+    val h = element.height * scaleFactor
+    val hs = HANDLE_SIZE_DP * 2
+
+    val handlePositions = listOf(
+        Offset(x, y), Offset(x + w / 2, y), Offset(x + w, y),
+        Offset(x, y + h / 2), Offset(x + w, y + h / 2),
+        Offset(x, y + h), Offset(x + w / 2, y + h), Offset(x + w, y + h),
+    )
+
+    for (pos in handlePositions) {
+        drawRect(Color.White, topLeft = Offset(pos.x - hs / 2, pos.y - hs / 2), size = Size(hs, hs))
+        drawRect(Color(0xFF42A5F5), topLeft = Offset(pos.x - hs / 2, pos.y - hs / 2), size = Size(hs, hs), style = Stroke(2f))
+    }
+}
+
+private fun DrawScope.drawGrid(widthPx: Int, heightPx: Int, gridSize: Float, scaleFactor: Float) {
+    val gridColor = Color(0x20000000)
+    var gx = gridSize
+    while (gx < widthPx) {
+        drawLine(gridColor, Offset(gx * scaleFactor, 0f), Offset(gx * scaleFactor, heightPx * scaleFactor))
+        gx += gridSize
+    }
+    var gy = gridSize
+    while (gy < heightPx) {
+        drawLine(gridColor, Offset(0f, gy * scaleFactor), Offset(widthPx * scaleFactor, gy * scaleFactor))
+        gy += gridSize
+    }
+}
+
+fun drawElementsForPrint(
+    scope: DrawScope,
+    elements: List<LabelElement>,
+    textMeasurer: TextMeasurer,
+) {
+    scope.drawRect(Color.White)
+    for (element in elements) {
+        scope.drawElement(element, scaleFactor = 1f, textMeasurer)
     }
 }
