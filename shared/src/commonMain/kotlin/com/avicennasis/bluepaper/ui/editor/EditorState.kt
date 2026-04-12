@@ -114,6 +114,32 @@ class EditorState(
         )
     }
 
+    // ---- Save/Load ----
+
+    fun toDesign(): LabelDesign = LabelDesign(
+        text = _labelText.value,
+        fontSize = _fontSize.value,
+        model = _selectedModel.value.model,
+        labelWidthMm = _selectedLabelSize.value.widthMm,
+        labelHeightMm = _selectedLabelSize.value.heightMm,
+        density = _density.value,
+        quantity = _quantity.value,
+        imageTransform = _imageTransform.value.toSerializable(),
+    )
+
+    fun loadDesign(design: LabelDesign) {
+        _labelText.value = design.text
+        _fontSize.value = design.fontSize
+        selectModel(design.model)
+        val matchingSize = _selectedModel.value.labelSizes.find {
+            it.widthMm == design.labelWidthMm && it.heightMm == design.labelHeightMm
+        }
+        if (matchingSize != null) _selectedLabelSize.value = matchingSize
+        _density.value = design.density
+        _quantity.value = design.quantity
+        _imageTransform.value = design.imageTransform.toImageTransform()
+    }
+
     fun print(imageRows: List<ByteArray>, width: Int, height: Int) {
         val config = _selectedModel.value
         val qty = _quantity.value

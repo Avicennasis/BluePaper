@@ -59,9 +59,24 @@ fun EditorScreen(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Label Editor", style = MaterialTheme.typography.headlineMedium)
-            TextButton(onClick = onDisconnect) { Text("Disconnect") }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = {
+                    val path = pickSaveFile("label.bpl")
+                    if (path != null) {
+                        writeTextFile(path, LabelDesign.toJson(state.toDesign()))
+                    }
+                }) { Text("Save") }
+                TextButton(onClick = {
+                    val json = pickOpenFile()
+                    if (json != null) {
+                        try { state.loadDesign(LabelDesign.fromJson(json)) } catch (_: Exception) { }
+                    }
+                }) { Text("Load") }
+                TextButton(onClick = onDisconnect) { Text("Disconnect") }
+            }
         }
 
         Spacer(Modifier.height(16.dp))
