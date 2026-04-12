@@ -31,7 +31,7 @@ fun EditorScreen(
     val textMeasurer = rememberTextMeasurer()
     var showPrintDialog by remember { mutableStateOf(false) }
 
-    // Compute monochrome preview reactively (includes imported image)
+    // Compute monochrome preview reactively
     val monochromeRows = remember(labelText, fontSize, selectedLabelSize, selectedModel, importedImage, imageTransform) {
         val w = selectedLabelSize.widthPx
         val h = selectedLabelSize.heightPx
@@ -55,7 +55,7 @@ fun EditorScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
     ) {
-        // Header
+        // Header with Save/Load/Disconnect
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -65,9 +65,7 @@ fun EditorScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = {
                     val path = pickSaveFile("label.bpl")
-                    if (path != null) {
-                        writeTextFile(path, LabelDesign.toJson(state.toDesign()))
-                    }
+                    if (path != null) writeTextFile(path, LabelDesign.toJson(state.toDesign()))
                 }) { Text("Save") }
                 TextButton(onClick = {
                     val json = pickOpenFile()
@@ -81,7 +79,7 @@ fun EditorScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Printer model
+        // Printer model dropdown
         Text("Printer Model", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         var modelExpanded by remember { mutableStateOf(false) }
@@ -105,7 +103,7 @@ fun EditorScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // Label size
+        // Label size chips
         Text("Label Size", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -120,7 +118,7 @@ fun EditorScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Design preview
+        // Previews
         Text("Design Preview", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         LabelCanvas(
@@ -132,115 +130,46 @@ fun EditorScreen(
             importedImage = importedImage,
             imageTransform = imageTransform,
         )
-
         Spacer(Modifier.height(12.dp))
-
-        // Print preview
         Text("Print Preview (monochrome)", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         MonochromePreview(rows = monochromeRows, width = previewWidth)
 
         Spacer(Modifier.height(16.dp))
 
-        // ---- Image Import ----
-        Text("Image", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ImagePickerButton(onImageLoaded = { state.setImage(it) })
-            if (importedImage != null) {
-                OutlinedButton(onClick = { state.clearImage() }) {
-                    Text("Clear")
-                }
-            }
-        }
-
-        // Image manipulation controls (visible when image is loaded)
-        if (importedImage != null) {
-            Spacer(Modifier.height(8.dp))
-
-            // Position
-            Text("Position X: ${imageTransform.offsetX.toInt()}", style = MaterialTheme.typography.bodySmall)
-            Slider(
-                value = imageTransform.offsetX,
-                onValueChange = { state.setImageOffset(it, imageTransform.offsetY) },
-                valueRange = -200f..500f,
-            )
-            Text("Position Y: ${imageTransform.offsetY.toInt()}", style = MaterialTheme.typography.bodySmall)
-            Slider(
-                value = imageTransform.offsetY,
-                onValueChange = { state.setImageOffset(imageTransform.offsetX, it) },
-                valueRange = -200f..500f,
-            )
-
-            // Scale
-            Text("Scale: ${"%.1f".format(imageTransform.scale)}x", style = MaterialTheme.typography.bodySmall)
-            Slider(
-                value = imageTransform.scale,
-                onValueChange = { state.setImageScale(it) },
-                valueRange = 0.1f..3f,
-            )
-
-            // Rotate + Flip buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { state.rotateImage90() }) {
-                    Text("Rotate 90")
-                }
-                OutlinedButton(onClick = { state.toggleFlipH() }) {
-                    Text(if (imageTransform.flipH) "Flip H (on)" else "Flip H")
-                }
-                OutlinedButton(onClick = { state.toggleFlipV() }) {
-                    Text(if (imageTransform.flipV) "Flip V (on)" else "Flip V")
-                }
-            }
-        }
+        // Image import + manipulation
+        ImageControls(
+            importedImage = importedImage,
+            imageTransform = imageTransform,
+            onImageLoaded = { state.setImage(it) },
+            onClear = { state.clearImage() },
+            onOffsetChange = { x, y -> state.setImageOffset(x, y) },
+            onScaleChange = { state.setImageScale(it) },
+            onRotate90 = { state.rotateImage90() },
+            onFlipH = { state.toggleFlipH() },
+            onFlipV = { state.toggleFlipV() },
+        )
 
         Spacer(Modifier.height(16.dp))
 
-        // ---- Text ----
-        Text("Text", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(4.dp))
-        OutlinedTextField(
-            value = labelText,
-            onValueChange = { state.setLabelText(it) },
-            label = { Text("Label Text") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = false,
-            minLines = 2,
-            maxLines = 5,
+        // Text input + font size
+        TextControls(
+            labelText = labelText,
+            fontSize = fontSize,
+            onTextChange = { state.setLabelText(it) },
+            onFontSizeChange = { state.setFontSize(it) },
         )
 
         Spacer(Modifier.height(8.dp))
 
-        Text("Font Size: ${fontSize.toInt()}sp", style = MaterialTheme.typography.bodySmall)
-        Slider(
-            value = fontSize,
-            onValueChange = { state.setFontSize(it) },
-            valueRange = 8f..72f,
+        // Density + copies
+        PrintSettings(
+            density = density,
+            maxDensity = selectedModel.maxDensity,
+            quantity = quantity,
+            onDensityChange = { state.setDensity(it) },
+            onQuantityChange = { state.setQuantity(it) },
         )
-
-        Spacer(Modifier.height(8.dp))
-
-        // Density + Quantity
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Density: $density", style = MaterialTheme.typography.bodySmall)
-                Slider(
-                    value = density.toFloat(),
-                    onValueChange = { state.setDensity(it.toInt()) },
-                    valueRange = 1f..selectedModel.maxDensity.toFloat(),
-                    steps = selectedModel.maxDensity - 2,
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Copies: $quantity", style = MaterialTheme.typography.bodySmall)
-                Slider(
-                    value = quantity.toFloat(),
-                    onValueChange = { state.setQuantity(it.toInt()) },
-                    valueRange = 1f..10f,
-                    steps = 8,
-                )
-            }
-        }
 
         Spacer(Modifier.height(16.dp))
 
@@ -257,9 +186,6 @@ fun EditorScreen(
     }
 
     if (showPrintDialog) {
-        PrintDialog(
-            progress = printProgress,
-            onDismiss = { showPrintDialog = false },
-        )
+        PrintDialog(progress = printProgress, onDismiss = { showPrintDialog = false })
     }
 }
