@@ -3,6 +3,7 @@ package com.avicennasis.bluepaper.ui.editor
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -11,7 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.avicennasis.bluepaper.config.DeviceRegistry
 import com.avicennasis.bluepaper.image.LabelRenderer
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditorScreen(
     state: EditorState,
@@ -27,6 +28,24 @@ fun EditorScreen(
 
     val textMeasurer = rememberTextMeasurer()
     var showPrintDialog by remember { mutableStateOf(false) }
+
+    // Compute monochrome preview reactively
+    val monochromeRows = remember(labelText, fontSize, selectedLabelSize, selectedModel) {
+        val w = selectedLabelSize.widthPx
+        val h = selectedLabelSize.heightPx
+        if (w <= 0 || h <= 0) emptyList()
+        else LabelRenderer.render(w, h, rotationDegrees = selectedModel.rotation) { drawScope ->
+            drawLabelContent(drawScope, labelText, fontSize, textMeasurer)
+        }
+    }
+    val previewWidth = remember(selectedLabelSize, selectedModel) {
+        val rot = selectedModel.rotation
+        if (rot % 180 != 0) selectedLabelSize.heightPx else selectedLabelSize.widthPx
+    }
+    val previewHeight = remember(selectedLabelSize, selectedModel) {
+        val rot = selectedModel.rotation
+        if (rot % 180 != 0) selectedLabelSize.widthPx else selectedLabelSize.heightPx
+    }
 
     Column(
         modifier = Modifier
@@ -69,7 +88,7 @@ fun EditorScreen(
 
         Text("Label Size", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             selectedModel.labelSizes.forEach { size ->
                 FilterChip(
                     selected = size == selectedLabelSize,
@@ -81,7 +100,7 @@ fun EditorScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        Text("Preview", style = MaterialTheme.typography.labelLarge)
+        Text("Design Preview", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         LabelCanvas(
             text = labelText,
@@ -89,6 +108,15 @@ fun EditorScreen(
             widthPx = selectedLabelSize.widthPx,
             heightPx = selectedLabelSize.heightPx,
             textMeasurer = textMeasurer,
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        Text("Print Preview (monochrome)", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(4.dp))
+        MonochromePreview(
+            rows = monochromeRows,
+            width = previewWidth,
         )
 
         Spacer(Modifier.height(16.dp))
@@ -136,16 +164,7 @@ fun EditorScreen(
 
         Button(
             onClick = {
-                val w = selectedLabelSize.widthPx
-                val h = selectedLabelSize.heightPx
-                val rot = selectedModel.rotation
-                val rows = LabelRenderer.render(w, h, rotationDegrees = rot) { drawScope ->
-                    drawLabelContent(drawScope, labelText, fontSize, textMeasurer)
-                }
-                // After rotation, dimensions may swap (e.g. -90°: w↔h)
-                val printW = if (rot % 180 != 0) h else w
-                val printH = if (rot % 180 != 0) w else h
-                state.print(rows, printW, printH)
+                state.print(monochromeRows, previewWidth, previewHeight)
                 showPrintDialog = true
             },
             modifier = Modifier.fillMaxWidth().height(56.dp),
