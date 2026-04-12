@@ -5,12 +5,19 @@ Cross-platform Bluetooth label printer app built with Kotlin Multiplatform and C
 ## Features
 
 - **8 Niimbot printer models** — D11, D11-H, D101, D110, D110-M, B1, B18, B21
-- **Text labels** — Multi-line text with adjustable font size, word wrapping
+- **Three-panel editor** — Pro-tool layout: toolbox, interactive canvas, properties panel
+- **Element-based design** — Text and image elements with click-to-select, drag-to-move, resize handles
+- **9 bundled fonts** — Sans-serif, serif, monospace, and display families with preview-in-picker
+- **6 label templates** — Simple Text, Two-Line, Image+Caption, Centered Image, Price Tag, Inventory
+- **Undo/redo** — Snapshot-based with Ctrl+Z / Ctrl+Shift+Z keyboard shortcuts
+- **Dark/Light/System theme** — Material3 with expanded color schemes, persisted preference
 - **Image import** — Load PNG/JPG/BMP with position, scale, rotate, flip controls
-- **Live preview** — Design preview + monochrome print preview showing exact printer output
+- **Live preview** — Tabbed Design preview + monochrome Print Preview showing exact printer output
 - **Device rotation** — Automatic per-model rotation (D-series: -90, B-series: 0)
-- **Save/load** — Label designs saved as `.bpl` JSON files
+- **Save/load** — Label designs saved as `.bpl` JSON files (v2 format with v1 migration)
 - **Print settings** — Density (1-5), copies (1-10), label size selection
+- **Snap-to-grid** — 8px grid with optional overlay, Alt to temporarily disable
+- **Keyboard shortcuts** — Arrow keys nudge 1px (Shift+Arrow = 10px), Delete removes element
 
 ## Supported Platforms
 
@@ -36,7 +43,7 @@ Cross-platform Bluetooth label printer app built with Kotlin Multiplatform and C
 ## Architecture
 
 ```
-Label Design → Compose Canvas → ImageBitmap.readPixels() → MonochromeEncoder
+Label Elements → Compose Canvas → ImageBitmap.readPixels() → MonochromeEncoder
 → packed 1-bit rows → PrinterClient.print() → CommandBuilder → NiimbotPackets
 → BleTransport.sendCommand() / writeRaw() → Kable → BLE GATT → Printer
 ```
@@ -44,7 +51,7 @@ Label Design → Compose Canvas → ImageBitmap.readPixels() → MonochromeEncod
 ## Building
 
 ```bash
-# Run tests (118 tests)
+# Run tests
 ./gradlew :shared:desktopTest
 
 # Run desktop app
@@ -62,7 +69,7 @@ Label Design → Compose Canvas → ImageBitmap.readPixels() → MonochromeEncod
 ```
 shared/src/commonMain/     — Protocol, BLE interfaces, image processing, UI (all platforms)
 shared/src/androidMain/    — Kable BLE scanner + transport
-shared/src/desktopMain/    — JFileChooser image/file pickers
+shared/src/desktopMain/    — JFileChooser image/file pickers, theme persistence
 shared/src/iosMain/        — Stubs (planned)
 androidApp/                — Android entry point
 desktopApp/                — Desktop entry point

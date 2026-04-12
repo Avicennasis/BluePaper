@@ -1,24 +1,24 @@
 # BluePaper — TODO
 
-## v0.3.0 — UI Overhaul (Current Focus)
-- [ ] LabelElement sealed class (Text, Image) — replaces flat state fields
-- [ ] Three-panel layout: left tools/elements, center canvas, right properties
-- [ ] Top toolbar: Save, Load, Undo, Redo, Theme toggle, Disconnect
-- [ ] Click-to-select canvas hit-testing
-- [ ] Drag-to-move elements on canvas
-- [ ] Resize handles (8-point, aspect ratio lock with shift)
-- [ ] Keyboard nudge (arrow 1px, shift+arrow 10px, delete to remove)
-- [ ] Snap-to-grid (8px default, alt to disable, optional grid overlay)
-- [ ] Dark/Light/System theme toggle with persisted preference
-- [ ] Expanded Material3 color scheme (surface variants, panel differentiation)
-- [ ] Font family picker — 9 bundled .ttf fonts with preview-in-picker
-- [ ] FontRegistry for font key → FontFamily mapping
-- [ ] Label templates — 6 starter templates (Simple Text, Two-Line, Image+Caption, Centered Image, Price Tag, Inventory)
-- [ ] Templates as bundled JSON resource with proportional coordinates
-- [ ] Undo/redo snapshot stack (max 50, coalesced mutations)
-- [ ] Ctrl+Z / Ctrl+Shift+Z keyboard shortcuts
-- [ ] .bpl v2 format with elements list (auto-migrate v1 on load)
-- [ ] Numeric property inputs alongside sliders in right panel
+## v0.3.0 — UI Overhaul (Complete)
+- [x] LabelElement sealed class (Text, Image) — replaces flat state fields
+- [x] Three-panel layout: left tools/elements, center canvas, right properties
+- [x] Top toolbar: Save, Load, Undo, Redo, Theme toggle, Disconnect
+- [x] Click-to-select canvas hit-testing
+- [x] Drag-to-move elements on canvas
+- [x] Resize handles (8-point, aspect ratio lock with shift)
+- [x] Keyboard nudge (arrow 1px, shift+arrow 10px, delete to remove)
+- [x] Snap-to-grid (8px default, alt to disable, optional grid overlay)
+- [x] Dark/Light/System theme toggle with persisted preference
+- [x] Expanded Material3 color scheme (surface variants, panel differentiation)
+- [x] Font family picker — 9 bundled .ttf fonts with preview-in-picker
+- [x] FontRegistry for font key → FontFamily mapping
+- [x] Label templates — 6 starter templates (Simple Text, Two-Line, Image+Caption, Centered Image, Price Tag, Inventory)
+- [x] Templates as bundled JSON resource with proportional coordinates
+- [x] Undo/redo snapshot stack (max 50, coalesced mutations)
+- [x] Ctrl+Z / Ctrl+Shift+Z keyboard shortcuts
+- [x] .bpl v2 format with elements list (auto-migrate v1 on load)
+- [x] Numeric property inputs alongside sliders in right panel
 - [ ] Narrow window fallback (< 800dp: left panel collapses, right panel becomes bottom sheet)
 
 ## Features (Backlog)
