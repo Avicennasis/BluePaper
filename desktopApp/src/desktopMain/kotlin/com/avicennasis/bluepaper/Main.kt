@@ -5,6 +5,7 @@ import androidx.compose.ui.window.application
 import com.avicennasis.bluepaper.ble.*
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
 import com.avicennasis.bluepaper.ui.BluePaperApp
+import com.avicennasis.bluepaper.ui.Screen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,6 +30,6 @@ class DesktopBleTransport : BleTransport {
 fun main() = application {
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     Window(onCloseRequest = ::exitApplication, title = "BluePaper") {
-        BluePaperApp(DesktopBleScanner(), DesktopBleTransport(), scope)
+        BluePaperApp(DesktopBleScanner(), DesktopBleTransport(), scope, startScreen = Screen.Editor)
     }
 }

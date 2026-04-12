@@ -17,8 +17,9 @@ fun BluePaperApp(
     scanner: BleScanner,
     transport: BleTransport,
     scope: CoroutineScope,
+    startScreen: Screen = Screen.Scanner,
 ) {
-    var currentScreen by remember { mutableStateOf(Screen.Scanner) }
+    var currentScreen by remember { mutableStateOf(startScreen) }
 
     val scannerState = remember { ScannerState(scanner, transport, scope) }
     val editorState = remember { EditorState(transport, scope) }
