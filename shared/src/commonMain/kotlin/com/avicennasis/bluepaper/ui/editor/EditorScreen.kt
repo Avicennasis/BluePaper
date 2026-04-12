@@ -189,6 +189,9 @@ fun EditorScreen(
             onValueChange = { state.setLabelText(it) },
             label = { Text("Label Text") },
             modifier = Modifier.fillMaxWidth(),
+            singleLine = false,
+            minLines = 2,
+            maxLines = 5,
         )
 
         Spacer(Modifier.height(8.dp))

@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,13 +80,20 @@ fun drawLabelContent(
         }
     }
 
-    // Draw text on top of image
+    // Draw text on top of image, wrapping within label bounds
     if (text.isNotEmpty()) {
-        scope.drawText(
-            textMeasurer = textMeasurer,
+        val padding = 8f
+        val maxWidth = (scope.size.width - padding * 2).toInt().coerceAtLeast(1)
+        val textLayout = textMeasurer.measure(
             text = text,
-            topLeft = Offset(8f, 8f),
             style = TextStyle(fontSize = fontSize.sp, color = Color.Black),
+            constraints = Constraints(maxWidth = maxWidth),
+            overflow = TextOverflow.Clip,
+            softWrap = true,
+        )
+        scope.drawText(
+            textLayoutResult = textLayout,
+            topLeft = Offset(padding, padding),
         )
     }
 }
