@@ -25,6 +25,7 @@ fun ToolboxPanel(
     onDeleteElement: (String) -> Unit,
     onAddText: () -> Unit,
     onAddImage: (ImageBitmap) -> Unit,
+    onAddBarcode: () -> Unit,
     onSelectModel: (String) -> Unit,
     onSelectLabelSize: (LabelSize) -> Unit,
     onDensityChange: (Int) -> Unit,
@@ -44,6 +45,9 @@ fun ToolboxPanel(
                 Text("+ Text")
             }
             ImagePickerButton(onImageLoaded = onAddImage)
+        }
+        OutlinedButton(onClick = onAddBarcode, modifier = Modifier.fillMaxWidth()) {
+            Text("+ Barcode")
         }
 
         Spacer(Modifier.height(8.dp))

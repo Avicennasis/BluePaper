@@ -31,6 +31,7 @@ class UndoManager(private val maxHistory: Int = 50) {
             when (element) {
                 is LabelElement.TextElement -> element.copy()
                 is LabelElement.ImageElement -> element.copy()
+                is LabelElement.BarcodeElement -> element.copy()
             }
         }
 }

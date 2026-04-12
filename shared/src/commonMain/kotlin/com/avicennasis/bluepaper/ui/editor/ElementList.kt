@@ -38,6 +38,7 @@ fun ElementList(
                         text = when (element) {
                             is LabelElement.TextElement -> "T"
                             is LabelElement.ImageElement -> "I"
+                            is LabelElement.BarcodeElement -> "B"
                         },
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
@@ -47,6 +48,7 @@ fun ElementList(
                         text = when (element) {
                             is LabelElement.TextElement -> element.text.take(20)
                             is LabelElement.ImageElement -> "Image"
+                            is LabelElement.BarcodeElement -> "${element.format.displayName}: ${element.data.take(15)}"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,

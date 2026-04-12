@@ -131,6 +131,7 @@ class EditorState(
             when (el) {
                 is LabelElement.TextElement -> el.copy(x = x, y = y)
                 is LabelElement.ImageElement -> el.copy(x = x, y = y)
+                is LabelElement.BarcodeElement -> el.copy(x = x, y = y)
             }
         }
     }
@@ -144,6 +145,7 @@ class EditorState(
             when (el) {
                 is LabelElement.TextElement -> el.copy(width = w, height = h)
                 is LabelElement.ImageElement -> el.copy(width = w, height = h)
+                is LabelElement.BarcodeElement -> el.copy(width = w, height = h)
             }
         }
     }
@@ -156,6 +158,7 @@ class EditorState(
             when (el) {
                 is LabelElement.TextElement -> el.copy(x = x, y = y, width = width, height = height)
                 is LabelElement.ImageElement -> el.copy(x = x, y = y, width = width, height = height)
+                is LabelElement.BarcodeElement -> el.copy(x = x, y = y, width = width, height = height)
             }
         }
     }
@@ -166,6 +169,7 @@ class EditorState(
             when (el) {
                 is LabelElement.TextElement -> el.copy(rotation = degrees)
                 is LabelElement.ImageElement -> el.copy(rotation = degrees)
+                is LabelElement.BarcodeElement -> el.copy(rotation = degrees)
             }
         }
     }
@@ -221,6 +225,70 @@ class EditorState(
             if (el is LabelElement.ImageElement) el.copy(rotation = (el.rotation + 90f) % 360f) else el
         }
     }
+
+    // --- Barcode methods ---
+
+    fun addBarcodeElement(format: BarcodeFormat, data: String, dataStandard: DataStandard = DataStandard.RAW_TEXT, structuredData: Map<String, String> = emptyMap()) {
+        saveUndoSnapshot()
+        val size = if (format.is2D) 100f else 200f
+        val height = if (format.is2D) 100f else 60f
+        val el = LabelElement.BarcodeElement(
+            id = newId("barcode"),
+            width = size,
+            height = height,
+            data = data,
+            format = format,
+            dataStandard = dataStandard,
+            structuredData = structuredData,
+        )
+        _elements.value = _elements.value + el
+        _selectedElementId.value = el.id
+    }
+
+    fun setBarcodeData(id: String, data: String) {
+        updateElement(id) { el ->
+            if (el is LabelElement.BarcodeElement) el.copy(data = data) else el
+        }
+    }
+
+    fun setBarcodeDataDone(id: String) { saveUndoSnapshot() }
+
+    fun setBarcodeFormat(id: String, format: BarcodeFormat) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.BarcodeElement) {
+                val autoFixed = BarcodeValidator.autoFix(format, el.data)
+                el.copy(format = format, data = autoFixed)
+            } else el
+        }
+    }
+
+    fun setBarcodeErrorCorrection(id: String, ec: ErrorCorrection) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.BarcodeElement) el.copy(errorCorrection = ec) else el
+        }
+    }
+
+    fun setBarcodeDataStandard(id: String, standard: DataStandard) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.BarcodeElement) el.copy(dataStandard = standard, structuredData = emptyMap(), data = "") else el
+        }
+    }
+
+    fun setBarcodeStructuredData(id: String, fields: Map<String, String>) {
+        updateElement(id) { el ->
+            if (el is LabelElement.BarcodeElement) {
+                val encoded = DataEncoderRegistry.encode(el.dataStandard, fields)
+                el.copy(structuredData = fields, data = encoded)
+            } else el
+        }
+    }
+
+    fun setBarcodeStructuredDataDone(id: String) { saveUndoSnapshot() }
+
+    // --- Printer config ---
 
     fun setDensity(d: Int) { _density.value = d.coerceIn(1, _selectedModel.value.maxDensity) }
     fun setQuantity(q: Int) { _quantity.value = q.coerceIn(1, 100) }

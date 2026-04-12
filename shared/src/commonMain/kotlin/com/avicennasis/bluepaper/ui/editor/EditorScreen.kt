@@ -38,6 +38,7 @@ fun EditorScreen(
     val textMeasurer = rememberTextMeasurer()
     var showPrintDialog by remember { mutableStateOf(false) }
     var showTemplateDialog by remember { mutableStateOf(false) }
+    var showBarcodePicker by remember { mutableStateOf(false) }
     var activeTab by remember { mutableStateOf(0) }
 
     val selectedElement = elements.find { it.id == selectedElementId }
@@ -97,6 +98,7 @@ fun EditorScreen(
                     onDeleteElement = { state.removeElement(it) },
                     onAddText = { state.addTextElement() },
                     onAddImage = { state.addImageElement(it) },
+                    onAddBarcode = { showBarcodePicker = true },
                     onSelectModel = { state.selectModel(it) },
                     onSelectLabelSize = { state.selectLabelSize(it) },
                     onDensityChange = { state.setDensity(it) },
@@ -210,6 +212,13 @@ fun EditorScreen(
                     onFlipH = { id -> state.toggleImageFlipH(id) },
                     onFlipV = { id -> state.toggleImageFlipV(id) },
                     onRotateImage90 = { id -> state.rotateImage90(id) },
+                    onBarcodeFormatChange = { id, fmt -> state.setBarcodeFormat(id, fmt) },
+                    onBarcodeDataChange = { id, data -> state.setBarcodeData(id, data) },
+                    onBarcodeDataChangeDone = { id -> state.setBarcodeDataDone(id) },
+                    onBarcodeErrorCorrectionChange = { id, ec -> state.setBarcodeErrorCorrection(id, ec) },
+                    onBarcodeDataStandardChange = { id, std -> state.setBarcodeDataStandard(id, std) },
+                    onBarcodeStructuredDataChange = { id, fields -> state.setBarcodeStructuredData(id, fields) },
+                    onBarcodeStructuredDataChangeDone = { id -> state.setBarcodeStructuredDataDone(id) },
                     onPrint = {
                         state.print(monochromeRows, previewWidth, previewHeight)
                         showPrintDialog = true
@@ -221,6 +230,16 @@ fun EditorScreen(
 
     if (showPrintDialog) {
         PrintDialog(progress = printProgress, onDismiss = { showPrintDialog = false })
+    }
+
+    if (showBarcodePicker) {
+        BarcodeFormatPicker(
+            onAdd = { format, data, standard, structuredData ->
+                state.addBarcodeElement(format, data, standard, structuredData)
+                showBarcodePicker = false
+            },
+            onDismiss = { showBarcodePicker = false },
+        )
     }
 
     if (showTemplateDialog) {

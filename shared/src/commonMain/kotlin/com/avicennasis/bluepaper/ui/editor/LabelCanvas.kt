@@ -74,6 +74,48 @@ private fun DrawScope.drawElement(
     when (element) {
         is LabelElement.TextElement -> drawTextElement(element, scaleFactor, textMeasurer)
         is LabelElement.ImageElement -> drawImageElement(element, scaleFactor)
+        is LabelElement.BarcodeElement -> drawBarcodeElement(element, scaleFactor, textMeasurer)
+    }
+}
+
+private fun DrawScope.drawBarcodeElement(
+    el: LabelElement.BarcodeElement,
+    scaleFactor: Float,
+    textMeasurer: TextMeasurer,
+) {
+    val screenX = el.x * scaleFactor
+    val screenY = el.y * scaleFactor
+    val screenW = el.width * scaleFactor
+    val screenH = el.height * scaleFactor
+
+    val bitmap = BarcodeRenderer.render(
+        format = el.format,
+        data = el.data,
+        width = el.width.toInt().coerceAtLeast(1),
+        height = el.height.toInt().coerceAtLeast(1),
+        errorCorrection = el.errorCorrection,
+    )
+
+    if (bitmap != null) {
+        drawImage(
+            image = bitmap,
+            dstOffset = androidx.compose.ui.unit.IntOffset(screenX.toInt(), screenY.toInt()),
+            dstSize = IntSize(screenW.toInt(), screenH.toInt()),
+        )
+    } else {
+        drawRect(
+            Color.LightGray,
+            topLeft = Offset(screenX, screenY),
+            size = Size(screenW, screenH),
+            style = Stroke(width = 1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f))),
+        )
+        val label = "${el.format.displayName}\n${if (el.data.isEmpty()) "No data" else "Invalid data"}"
+        val layout = textMeasurer.measure(
+            text = label,
+            style = TextStyle(fontSize = (10f * scaleFactor).sp, color = Color.Gray),
+            constraints = Constraints(maxWidth = screenW.toInt().coerceAtLeast(1)),
+        )
+        drawText(layout, topLeft = Offset(screenX + 4f, screenY + 4f))
     }
 }
 

@@ -25,6 +25,13 @@ fun PropertiesPanel(
     onFlipH: (String) -> Unit,
     onFlipV: (String) -> Unit,
     onRotateImage90: (String) -> Unit,
+    onBarcodeFormatChange: (String, BarcodeFormat) -> Unit = { _, _ -> },
+    onBarcodeDataChange: (String, String) -> Unit = { _, _ -> },
+    onBarcodeDataChangeDone: (String) -> Unit = {},
+    onBarcodeErrorCorrectionChange: (String, ErrorCorrection) -> Unit = { _, _ -> },
+    onBarcodeDataStandardChange: (String, DataStandard) -> Unit = { _, _ -> },
+    onBarcodeStructuredDataChange: (String, Map<String, String>) -> Unit = { _, _ -> },
+    onBarcodeStructuredDataChangeDone: (String) -> Unit = {},
     onPrint: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -120,6 +127,19 @@ fun PropertiesPanel(
                             Text(if (selectedElement.flipV) "V (on)" else "Flip V")
                         }
                     }
+                }
+
+                is LabelElement.BarcodeElement -> {
+                    BarcodeProperties(
+                        element = selectedElement,
+                        onFormatChange = onBarcodeFormatChange,
+                        onDataChange = onBarcodeDataChange,
+                        onDataChangeDone = onBarcodeDataChangeDone,
+                        onErrorCorrectionChange = onBarcodeErrorCorrectionChange,
+                        onDataStandardChange = onBarcodeDataStandardChange,
+                        onStructuredDataChange = onBarcodeStructuredDataChange,
+                        onStructuredDataChangeDone = onBarcodeStructuredDataChangeDone,
+                    )
                 }
             }
         } else {

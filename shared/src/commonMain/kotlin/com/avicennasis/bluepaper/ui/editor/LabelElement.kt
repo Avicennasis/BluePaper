@@ -35,6 +35,20 @@ sealed class LabelElement {
         val flipH: Boolean = false,
         val flipV: Boolean = false,
     ) : LabelElement()
+
+    data class BarcodeElement(
+        override val id: String,
+        override val x: Float = 0f,
+        override val y: Float = 0f,
+        override val width: Float = 100f,
+        override val height: Float = 100f,
+        override val rotation: Float = 0f,
+        val data: String = "",
+        val format: BarcodeFormat = BarcodeFormat.QR_CODE,
+        val errorCorrection: ErrorCorrection = ErrorCorrection.M,
+        val dataStandard: DataStandard = DataStandard.RAW_TEXT,
+        val structuredData: Map<String, String> = emptyMap(),
+    ) : LabelElement()
 }
 
 @Serializable
@@ -52,6 +66,11 @@ data class SerializableLabelElement(
     val scale: Float? = null,
     val flipH: Boolean? = null,
     val flipV: Boolean? = null,
+    val barcodeData: String? = null,
+    val barcodeFormat: String? = null,
+    val errorCorrection: String? = null,
+    val dataStandard: String? = null,
+    val structuredData: Map<String, String>? = null,
 )
 
 fun LabelElement.toSerializable(): SerializableLabelElement = when (this) {
@@ -63,6 +82,12 @@ fun LabelElement.toSerializable(): SerializableLabelElement = when (this) {
         type = "image", id = id, x = x, y = y, width = width, height = height,
         rotation = rotation, scale = scale, flipH = flipH, flipV = flipV,
     )
+    is LabelElement.BarcodeElement -> SerializableLabelElement(
+        type = "barcode", id = id, x = x, y = y, width = width, height = height,
+        rotation = rotation, barcodeData = data, barcodeFormat = format.name,
+        errorCorrection = errorCorrection.name, dataStandard = dataStandard.name,
+        structuredData = structuredData.takeIf { it.isNotEmpty() },
+    )
 }
 
 fun SerializableLabelElement.toLabelElement(): LabelElement = when (type) {
@@ -73,6 +98,14 @@ fun SerializableLabelElement.toLabelElement(): LabelElement = when (type) {
     "image" -> LabelElement.ImageElement(
         id = id, x = x, y = y, width = width, height = height, rotation = rotation,
         scale = scale ?: 1f, flipH = flipH ?: false, flipV = flipV ?: false,
+    )
+    "barcode" -> LabelElement.BarcodeElement(
+        id = id, x = x, y = y, width = width, height = height, rotation = rotation,
+        data = barcodeData ?: "",
+        format = barcodeFormat?.let { runCatching { BarcodeFormat.valueOf(it) }.getOrNull() } ?: BarcodeFormat.QR_CODE,
+        errorCorrection = errorCorrection?.let { runCatching { ErrorCorrection.valueOf(it) }.getOrNull() } ?: ErrorCorrection.M,
+        dataStandard = dataStandard?.let { runCatching { DataStandard.valueOf(it) }.getOrNull() } ?: DataStandard.RAW_TEXT,
+        structuredData = structuredData ?: emptyMap(),
     )
     else -> LabelElement.TextElement(id = id, x = x, y = y, text = "Unknown")
 }
