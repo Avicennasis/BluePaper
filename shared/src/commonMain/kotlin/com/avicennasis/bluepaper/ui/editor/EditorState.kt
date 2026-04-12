@@ -1,5 +1,6 @@
 package com.avicennasis.bluepaper.ui.editor
 
+import androidx.compose.ui.graphics.ImageBitmap
 import com.avicennasis.bluepaper.ble.BleTransport
 import com.avicennasis.bluepaper.config.DeviceConfig
 import com.avicennasis.bluepaper.config.DeviceRegistry
@@ -9,6 +10,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+
+data class ImageTransform(
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
+    val scale: Float = 1f,
+    val rotation: Float = 0f,
+    val flipH: Boolean = false,
+    val flipV: Boolean = false,
+)
 
 data class PrintProgress(
     val completed: Int,
@@ -41,6 +51,12 @@ class EditorState(
     private val _quantity = MutableStateFlow(1)
     val quantity: StateFlow<Int> = _quantity
 
+    private val _importedImage = MutableStateFlow<ImageBitmap?>(null)
+    val importedImage: StateFlow<ImageBitmap?> = _importedImage
+
+    private val _imageTransform = MutableStateFlow(ImageTransform())
+    val imageTransform: StateFlow<ImageTransform> = _imageTransform
+
     private val _printProgress = MutableStateFlow(PrintProgress(0, 0, false))
     val printProgress: StateFlow<PrintProgress> = _printProgress
 
@@ -58,6 +74,44 @@ class EditorState(
 
     fun selectLabelSize(size: LabelSize) {
         _selectedLabelSize.value = size
+    }
+
+    // ---- Image Methods ----
+
+    fun setImage(bitmap: ImageBitmap) {
+        _importedImage.value = bitmap
+        _imageTransform.value = ImageTransform() // reset transforms
+    }
+
+    fun clearImage() {
+        _importedImage.value = null
+        _imageTransform.value = ImageTransform()
+    }
+
+    fun setImageOffset(x: Float, y: Float) {
+        _imageTransform.value = _imageTransform.value.copy(offsetX = x, offsetY = y)
+    }
+
+    fun setImageScale(scale: Float) {
+        _imageTransform.value = _imageTransform.value.copy(scale = scale.coerceIn(0.1f, 5f))
+    }
+
+    fun setImageRotation(degrees: Float) {
+        _imageTransform.value = _imageTransform.value.copy(rotation = degrees)
+    }
+
+    fun toggleFlipH() {
+        _imageTransform.value = _imageTransform.value.copy(flipH = !_imageTransform.value.flipH)
+    }
+
+    fun toggleFlipV() {
+        _imageTransform.value = _imageTransform.value.copy(flipV = !_imageTransform.value.flipV)
+    }
+
+    fun rotateImage90() {
+        _imageTransform.value = _imageTransform.value.copy(
+            rotation = (_imageTransform.value.rotation + 90f) % 360f,
+        )
     }
 
     fun print(imageRows: List<ByteArray>, width: Int, height: Int) {

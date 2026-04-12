@@ -9,11 +9,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -24,6 +27,8 @@ fun LabelCanvas(
     widthPx: Int,
     heightPx: Int,
     textMeasurer: TextMeasurer,
+    importedImage: ImageBitmap? = null,
+    imageTransform: ImageTransform = ImageTransform(),
     modifier: Modifier = Modifier,
 ) {
     val ratio = widthPx.toFloat() / heightPx.toFloat()
@@ -34,17 +39,7 @@ fun LabelCanvas(
             .aspectRatio(ratio)
             .border(1.dp, MaterialTheme.colorScheme.outline),
     ) {
-        drawRect(Color.White)
-
-        if (text.isNotEmpty()) {
-            drawText(
-                textMeasurer = textMeasurer,
-                text = text,
-                topLeft = Offset(8f, 8f),
-                style = TextStyle(fontSize = fontSize.sp, color = Color.Black),
-            )
-        }
-
+        drawLabelContent(this, text, fontSize, textMeasurer, importedImage, imageTransform)
         drawRect(Color.LightGray, style = Stroke(1f))
     }
 }
@@ -54,8 +49,36 @@ fun drawLabelContent(
     text: String,
     fontSize: Float,
     textMeasurer: TextMeasurer,
+    importedImage: ImageBitmap? = null,
+    imageTransform: ImageTransform = ImageTransform(),
 ) {
     scope.drawRect(Color.White)
+
+    // Draw imported image with transforms
+    importedImage?.let { img ->
+        scope.withTransform({
+            translate(imageTransform.offsetX, imageTransform.offsetY)
+            rotate(
+                imageTransform.rotation,
+                pivot = Offset(img.width * imageTransform.scale / 2f, img.height * imageTransform.scale / 2f),
+            )
+            scale(
+                scaleX = imageTransform.scale * (if (imageTransform.flipH) -1f else 1f),
+                scaleY = imageTransform.scale * (if (imageTransform.flipV) -1f else 1f),
+                pivot = Offset(img.width * imageTransform.scale / 2f, img.height * imageTransform.scale / 2f),
+            )
+        }) {
+            drawImage(
+                image = img,
+                dstSize = IntSize(
+                    (img.width * imageTransform.scale).toInt(),
+                    (img.height * imageTransform.scale).toInt(),
+                ),
+            )
+        }
+    }
+
+    // Draw text on top of image
     if (text.isNotEmpty()) {
         scope.drawText(
             textMeasurer = textMeasurer,
