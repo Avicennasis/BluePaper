@@ -34,7 +34,7 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "BluePaper",
-        state = rememberWindowState(width = 500.dp, height = 900.dp),
+        state = rememberWindowState(width = 1200.dp, height = 800.dp),
     ) {
         BluePaperApp(DesktopBleScanner(), DesktopBleTransport(), scope, startScreen = Screen.Editor)
     }

@@ -1,43 +1,54 @@
 package com.avicennasis.bluepaper.ui.editor
 
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.Alignment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
-import com.avicennasis.bluepaper.config.DeviceRegistry
 import com.avicennasis.bluepaper.image.LabelRenderer
+import com.avicennasis.bluepaper.ui.theme.ThemeMode
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditorScreen(
     state: EditorState,
+    themeMode: ThemeMode = ThemeMode.System,
+    onThemeToggle: () -> Unit = {},
     onDisconnect: () -> Unit,
 ) {
-    val labelText by state.labelText.collectAsState()
-    val fontSize by state.fontSize.collectAsState()
+    val elements by state.elements.collectAsState()
+    val selectedElementId by state.selectedElementId.collectAsState()
     val selectedModel by state.selectedModel.collectAsState()
     val selectedLabelSize by state.selectedLabelSize.collectAsState()
     val density by state.density.collectAsState()
     val quantity by state.quantity.collectAsState()
     val printProgress by state.printProgress.collectAsState()
-    val importedImage by state.importedImage.collectAsState()
-    val imageTransform by state.imageTransform.collectAsState()
+    val canUndo by state.canUndo.collectAsState()
+    val canRedo by state.canRedo.collectAsState()
+    val showGrid by state.showGrid.collectAsState()
+    val gridSize by state.gridSize.collectAsState()
 
     val textMeasurer = rememberTextMeasurer()
     var showPrintDialog by remember { mutableStateOf(false) }
+    var showTemplateDialog by remember { mutableStateOf(false) }
+    var activeTab by remember { mutableStateOf(0) }
 
-    // Compute monochrome preview reactively
-    val monochromeRows = remember(labelText, fontSize, selectedLabelSize, selectedModel, importedImage, imageTransform) {
+    val selectedElement = elements.find { it.id == selectedElementId }
+    val focusRequester = remember { FocusRequester() }
+
+    val monochromeRows = remember(elements, selectedLabelSize, selectedModel) {
         val w = selectedLabelSize.widthPx
         val h = selectedLabelSize.heightPx
         if (w <= 0 || h <= 0) emptyList()
-        else LabelRenderer.render(w, h, rotationDegrees = selectedModel.rotation) { drawScope ->
-            drawLabelContent(drawScope, labelText, fontSize, textMeasurer, importedImage, imageTransform)
+        else LabelRenderer.render(w, h, rotationDegrees = selectedModel.rotation) { scope ->
+            drawElementsForPrint(scope, elements, textMeasurer)
         }
     }
     val previewWidth = remember(selectedLabelSize, selectedModel) {
@@ -49,143 +60,178 @@ fun EditorScreen(
         if (rot % 180 != 0) selectedLabelSize.widthPx else selectedLabelSize.heightPx
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-    ) {
-        // Header with Save/Load/Disconnect
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Label Editor", style = MaterialTheme.typography.headlineMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = {
-                    val path = pickSaveFile("label.bpl")
-                    if (path != null) writeTextFile(path, LabelDesign.toJson(state.toDesign()))
-                }) { Text("Save") }
-                TextButton(onClick = {
-                    val json = pickOpenFile()
-                    if (json != null) {
-                        try { state.loadDesign(LabelDesign.fromJson(json)) } catch (_: Exception) { }
-                    }
-                }) { Text("Load") }
-                TextButton(onClick = onDisconnect) { Text("Disconnect") }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Printer model dropdown
-        Text("Printer Model", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(4.dp))
-        var modelExpanded by remember { mutableStateOf(false) }
-        ExposedDropdownMenuBox(expanded = modelExpanded, onExpandedChange = { modelExpanded = it }) {
-            OutlinedTextField(
-                value = selectedModel.model.uppercase(),
-                onValueChange = {},
-                readOnly = true,
-                modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded) },
-            )
-            ExposedDropdownMenu(expanded = modelExpanded, onDismissRequest = { modelExpanded = false }) {
-                DeviceRegistry.models().forEach { model ->
-                    DropdownMenuItem(
-                        text = { Text(model.uppercase()) },
-                        onClick = { state.selectModel(model); modelExpanded = false },
-                    )
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopToolbar(
+            canUndo = canUndo,
+            canRedo = canRedo,
+            themeMode = themeMode,
+            showGrid = showGrid,
+            onSave = {
+                val path = pickSaveFile("label.bpl")
+                if (path != null) writeTextFile(path, LabelDesign.toJson(state.toDesign()))
+            },
+            onLoad = {
+                val json = pickOpenFile()
+                if (json != null) {
+                    try { state.loadDesign(LabelDesign.fromJson(json)) } catch (_: Exception) { }
                 }
-            }
-        }
+            },
+            onUndo = { state.undo() },
+            onRedo = { state.redo() },
+            onTemplates = { showTemplateDialog = true },
+            onThemeToggle = onThemeToggle,
+            onGridToggle = { state.toggleGrid() },
+            onDisconnect = onDisconnect,
+        )
 
-        Spacer(Modifier.height(12.dp))
-
-        // Label size chips
-        Text("Label Size", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(4.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            selectedModel.labelSizes.forEach { size ->
-                FilterChip(
-                    selected = size == selectedLabelSize,
-                    onClick = { state.selectLabelSize(size) },
-                    label = { Text(size.displayName) },
+        Row(modifier = Modifier.fillMaxSize()) {
+            Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+                ToolboxPanel(
+                    elements = elements,
+                    selectedElementId = selectedElementId,
+                    selectedModel = selectedModel,
+                    selectedLabelSize = selectedLabelSize,
+                    density = density,
+                    quantity = quantity,
+                    onSelectElement = { state.selectElement(it) },
+                    onDeleteElement = { state.removeElement(it) },
+                    onAddText = { state.addTextElement() },
+                    onAddImage = { state.addImageElement(it) },
+                    onSelectModel = { state.selectModel(it) },
+                    onSelectLabelSize = { state.selectLabelSize(it) },
+                    onDensityChange = { state.setDensity(it) },
+                    onQuantityChange = { state.setQuantity(it) },
                 )
             }
-        }
 
-        Spacer(Modifier.height(16.dp))
+            VerticalDivider()
 
-        // Previews
-        Text("Design Preview", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(4.dp))
-        LabelCanvas(
-            text = labelText,
-            fontSize = fontSize,
-            widthPx = selectedLabelSize.widthPx,
-            heightPx = selectedLabelSize.heightPx,
-            textMeasurer = textMeasurer,
-            importedImage = importedImage,
-            imageTransform = imageTransform,
-        )
-        Spacer(Modifier.height(12.dp))
-        Text("Print Preview (monochrome)", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(4.dp))
-        MonochromePreview(rows = monochromeRows, width = previewWidth)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(16.dp)
+                    .focusRequester(focusRequester)
+                    .focusable()
+                    .onKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && selectedElementId != null) {
+                            val id = selectedElementId!!
+                            val el = elements.find { it.id == id } ?: return@onKeyEvent false
+                            val step = if (event.isShiftPressed) 10f else 1f
+                            when (event.key) {
+                                Key.DirectionLeft -> { state.moveElement(id, el.x - step, el.y); state.moveElementDone(id); true }
+                                Key.DirectionRight -> { state.moveElement(id, el.x + step, el.y); state.moveElementDone(id); true }
+                                Key.DirectionUp -> { state.moveElement(id, el.x, el.y - step); state.moveElementDone(id); true }
+                                Key.DirectionDown -> { state.moveElement(id, el.x, el.y + step); state.moveElementDone(id); true }
+                                Key.Delete, Key.Backspace -> { state.removeElement(id); true }
+                                else -> false
+                            }
+                        } else false
+                    },
+            ) {
+                TabRow(selectedTabIndex = activeTab) {
+                    Tab(selected = activeTab == 0, onClick = { activeTab = 0 }) {
+                        Text("Design", modifier = Modifier.padding(12.dp))
+                    }
+                    Tab(selected = activeTab == 1, onClick = { activeTab = 1 }) {
+                        Text("Print Preview", modifier = Modifier.padding(12.dp))
+                    }
+                }
 
-        Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
 
-        // Image import + manipulation
-        ImageControls(
-            importedImage = importedImage,
-            imageTransform = imageTransform,
-            onImageLoaded = { state.setImage(it) },
-            onClear = { state.clearImage() },
-            onOffsetChange = { x, y -> state.setImageOffset(x, y) },
-            onScaleChange = { state.setImageScale(it) },
-            onRotate90 = { state.rotateImage90() },
-            onFlipH = { state.toggleFlipH() },
-            onFlipV = { state.toggleFlipV() },
-        )
+                when (activeTab) {
+                    0 -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(elements, selectedElementId) {
+                                    detectTapGestures { offset ->
+                                        val (lx, ly) = screenToLabel(
+                                            offset.x, offset.y,
+                                            size.width.toFloat(), size.height.toFloat(),
+                                            selectedLabelSize.widthPx, selectedLabelSize.heightPx,
+                                        )
+                                        val hit = hitTest(elements, lx, ly)
+                                        state.selectElement(hit?.id)
+                                        focusRequester.requestFocus()
+                                    }
+                                }
+                                .pointerInput(elements, selectedElementId) {
+                                    detectDragGestures(
+                                        onDragEnd = {
+                                            selectedElementId?.let { state.moveElementDone(it) }
+                                        },
+                                    ) { _, dragAmount ->
+                                        val id = selectedElementId ?: return@detectDragGestures
+                                        val el = elements.find { it.id == id } ?: return@detectDragGestures
+                                        val (dx, dy) = screenDeltaToLabel(
+                                            dragAmount.x, dragAmount.y,
+                                            size.width.toFloat(), size.height.toFloat(),
+                                            selectedLabelSize.widthPx, selectedLabelSize.heightPx,
+                                        )
+                                        val newX = if (gridSize > 0f) snapToGrid(el.x + dx, gridSize) else el.x + dx
+                                        val newY = if (gridSize > 0f) snapToGrid(el.y + dy, gridSize) else el.y + dy
+                                        state.moveElement(id, newX, newY)
+                                    }
+                                },
+                        ) {
+                            LabelCanvas(
+                                elements = elements,
+                                selectedElementId = selectedElementId,
+                                widthPx = selectedLabelSize.widthPx,
+                                heightPx = selectedLabelSize.heightPx,
+                                textMeasurer = textMeasurer,
+                                showGrid = showGrid,
+                                gridSize = gridSize,
+                            )
+                        }
+                    }
+                    1 -> {
+                        MonochromePreview(rows = monochromeRows, width = previewWidth)
+                    }
+                }
+            }
 
-        Spacer(Modifier.height(16.dp))
+            VerticalDivider()
 
-        // Text input + font size
-        TextControls(
-            labelText = labelText,
-            fontSize = fontSize,
-            onTextChange = { state.setLabelText(it) },
-            onFontSizeChange = { state.setFontSize(it) },
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        // Density + copies
-        PrintSettings(
-            density = density,
-            maxDensity = selectedModel.maxDensity,
-            quantity = quantity,
-            onDensityChange = { state.setDensity(it) },
-            onQuantityChange = { state.setQuantity(it) },
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // Print button
-        Button(
-            onClick = {
-                state.print(monochromeRows, previewWidth, previewHeight)
-                showPrintDialog = true
-            },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-        ) {
-            Text("Print", style = MaterialTheme.typography.titleMedium)
+            Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+                PropertiesPanel(
+                    selectedElement = selectedElement,
+                    onPositionChange = { id, x, y, w, h -> state.setElementPosition(id, x, y, w, h) },
+                    onRotationChange = { id, deg -> state.setElementRotation(id, deg) },
+                    onTextChange = { id, text -> state.setTextContent(id, text) },
+                    onTextChangeDone = { id -> state.setTextContentDone(id) },
+                    onFontSizeChange = { id, size -> state.setFontSize(id, size) },
+                    onFontSizeChangeDone = { id -> state.setFontSizeDone(id) },
+                    onFontFamilyChange = { id, family -> state.setFontFamily(id, family) },
+                    onImageScaleChange = { id, scale -> state.setImageScale(id, scale) },
+                    onImageScaleChangeDone = { id -> state.setImageScaleDone(id) },
+                    onFlipH = { id -> state.toggleImageFlipH(id) },
+                    onFlipV = { id -> state.toggleImageFlipV(id) },
+                    onRotateImage90 = { id -> state.rotateImage90(id) },
+                    onPrint = {
+                        state.print(monochromeRows, previewWidth, previewHeight)
+                        showPrintDialog = true
+                    },
+                )
+            }
         }
     }
 
     if (showPrintDialog) {
         PrintDialog(progress = printProgress, onDismiss = { showPrintDialog = false })
+    }
+
+    if (showTemplateDialog) {
+        TemplatePickerDialog(
+            templates = TemplateManager.builtInTemplates(),
+            hasExistingElements = elements.isNotEmpty(),
+            onSelect = { template ->
+                state.applyTemplate(template)
+                showTemplateDialog = false
+            },
+            onDismiss = { showTemplateDialog = false },
+        )
     }
 }
