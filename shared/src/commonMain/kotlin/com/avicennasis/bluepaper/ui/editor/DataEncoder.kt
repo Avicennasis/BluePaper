@@ -1,5 +1,7 @@
 package com.avicennasis.bluepaper.ui.editor
 
+import com.avicennasis.bluepaper.ui.editor.encoders.*
+
 interface DataEncoder {
     val standard: DataStandard
     fun fields(): List<DataField>
@@ -9,6 +11,21 @@ interface DataEncoder {
 
 object DataEncoderRegistry {
     private val encoders = mutableMapOf<DataStandard, DataEncoder>()
+
+    init {
+        register(VCardEncoder())
+        register(UrlEncoder())
+        register(WifiEncoder())
+        register(MeCardEncoder())
+        register(SmsEncoder)
+        register(EmailEncoder)
+        register(PhoneEncoder)
+        register(GeoEncoder)
+        register(AamvaEncoder())
+        register(Gs1128Encoder())
+        register(Gs1DataMatrixEncoder())
+        register(HibcEncoder())
+    }
 
     fun register(encoder: DataEncoder) {
         encoders[encoder.standard] = encoder
