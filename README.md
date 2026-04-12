@@ -6,7 +6,11 @@ Cross-platform Bluetooth label printer app built with Kotlin Multiplatform and C
 
 - **8 Niimbot printer models** — D11, D11-H, D101, D110, D110-M, B1, B18, B21
 - **Three-panel editor** — Pro-tool layout: toolbox, interactive canvas, properties panel
-- **Element-based design** — Text and image elements with click-to-select, drag-to-move, resize handles
+- **Element-based design** — Text, image, and barcode elements with click-to-select, drag-to-move, resize handles
+- **16 barcode formats** — QR Code, PDF417, Data Matrix, Aztec, MaxiCode, Code 128/39/93, EAN-13/8, UPC-A/E, Codabar, ITF, RSS
+- **13 data standards** — vCard, URL, WiFi, MeCard, SMS, Email, Phone, Geo, AAMVA, GS1-128, GS1 DataMatrix, HIBC
+- **Structured barcode data** — Categorized format picker, structured field entry, auto-encoding per standard
+- **QR error correction** — L/M/Q/H levels with auto-fix validation for EAN/UPC check digits
 - **9 bundled fonts** — Sans-serif, serif, monospace, and display families with preview-in-picker
 - **6 label templates** — Simple Text, Two-Line, Image+Caption, Centered Image, Price Tag, Inventory
 - **Undo/redo** — Snapshot-based with Ctrl+Z / Ctrl+Shift+Z keyboard shortcuts
