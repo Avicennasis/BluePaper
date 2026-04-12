@@ -138,10 +138,14 @@ fun EditorScreen(
             onClick = {
                 val w = selectedLabelSize.widthPx
                 val h = selectedLabelSize.heightPx
-                val rows = LabelRenderer.render(w, h) { drawScope ->
+                val rot = selectedModel.rotation
+                val rows = LabelRenderer.render(w, h, rotationDegrees = rot) { drawScope ->
                     drawLabelContent(drawScope, labelText, fontSize, textMeasurer)
                 }
-                state.print(rows, w, h)
+                // After rotation, dimensions may swap (e.g. -90°: w↔h)
+                val printW = if (rot % 180 != 0) h else w
+                val printH = if (rot % 180 != 0) w else h
+                state.print(rows, printW, printH)
                 showPrintDialog = true
             },
             modifier = Modifier.fillMaxWidth().height(56.dp),

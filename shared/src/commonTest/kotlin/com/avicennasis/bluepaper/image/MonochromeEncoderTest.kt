@@ -144,4 +144,84 @@ class MonochromeEncoderTest {
         assertContentEquals(byteArrayOf(0x00), rows[0])
         assertContentEquals(byteArrayOf(0xFF.toByte()), rows[1])
     }
+
+    // ---- Rotation Tests ----
+
+    @Test
+    fun rotate0DegreesIsIdentity() {
+        // 2x3 grid: pixels [A, B / C, D / E, F]
+        val pixels = intArrayOf(1, 2, 3, 4, 5, 6)
+        val (rotated, w, h) = MonochromeEncoder.rotatePixels(pixels, 2, 3, 0)
+        assertEquals(2, w)
+        assertEquals(3, h)
+        assertContentEquals(intArrayOf(1, 2, 3, 4, 5, 6), rotated)
+    }
+
+    @Test
+    fun rotate90CW() {
+        // 2x3 grid:      90° CW → 3x2 grid:
+        // [1, 2]          [5, 3, 1]
+        // [3, 4]          [6, 4, 2]
+        // [5, 6]
+        val pixels = intArrayOf(1, 2, 3, 4, 5, 6)
+        val (rotated, w, h) = MonochromeEncoder.rotatePixels(pixels, 2, 3, 90)
+        assertEquals(3, w)
+        assertEquals(2, h)
+        assertContentEquals(intArrayOf(5, 3, 1, 6, 4, 2), rotated)
+    }
+
+    @Test
+    fun rotate180() {
+        // 2x3 grid:      180° → 2x3 grid:
+        // [1, 2]          [6, 5]
+        // [3, 4]          [4, 3]
+        // [5, 6]          [2, 1]
+        val pixels = intArrayOf(1, 2, 3, 4, 5, 6)
+        val (rotated, w, h) = MonochromeEncoder.rotatePixels(pixels, 2, 3, 180)
+        assertEquals(2, w)
+        assertEquals(3, h)
+        assertContentEquals(intArrayOf(6, 5, 4, 3, 2, 1), rotated)
+    }
+
+    @Test
+    fun rotate270CW() {
+        // 2x3 grid:      270° CW (= 90° CCW) → 3x2 grid:
+        // [1, 2]          [2, 4, 6]
+        // [3, 4]          [1, 3, 5]
+        // [5, 6]
+        val pixels = intArrayOf(1, 2, 3, 4, 5, 6)
+        val (rotated, w, h) = MonochromeEncoder.rotatePixels(pixels, 2, 3, 270)
+        assertEquals(3, w)
+        assertEquals(2, h)
+        assertContentEquals(intArrayOf(2, 4, 6, 1, 3, 5), rotated)
+    }
+
+    @Test
+    fun rotateNeg90IsSameAs270() {
+        // -90° should be identical to 270° CW
+        val pixels = intArrayOf(1, 2, 3, 4, 5, 6)
+        val (r270, w270, h270) = MonochromeEncoder.rotatePixels(pixels, 2, 3, 270)
+        val (rNeg90, wNeg90, hNeg90) = MonochromeEncoder.rotatePixels(pixels, 2, 3, -90)
+        assertEquals(w270, wNeg90)
+        assertEquals(h270, hNeg90)
+        assertContentEquals(r270, rNeg90)
+    }
+
+    @Test
+    fun rotate90SwapsDimensions() {
+        // 4 wide x 2 tall → 2 wide x 4 tall
+        val pixels = IntArray(8) { it }
+        val (_, w, h) = MonochromeEncoder.rotatePixels(pixels, 4, 2, 90)
+        assertEquals(2, w)
+        assertEquals(4, h)
+    }
+
+    @Test
+    fun rotate1x1IsIdentity() {
+        val pixels = intArrayOf(42)
+        val (rotated, w, h) = MonochromeEncoder.rotatePixels(pixels, 1, 1, 90)
+        assertEquals(1, w)
+        assertEquals(1, h)
+        assertContentEquals(intArrayOf(42), rotated)
+    }
 }

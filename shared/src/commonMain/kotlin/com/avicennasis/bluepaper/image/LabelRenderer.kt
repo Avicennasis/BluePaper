@@ -9,9 +9,14 @@ import androidx.compose.ui.unit.LayoutDirection
 
 object LabelRenderer {
 
+    /**
+     * @param rotationDegrees Device rotation applied before encoding (e.g. -90 for D-series).
+     *   Rotation swaps width/height — the returned rows have the rotated dimensions.
+     */
     fun render(
         width: Int,
         height: Int,
+        rotationDegrees: Int = 0,
         horizontalOffset: Int = 0,
         verticalOffset: Int = 0,
         draw: (DrawScope) -> Unit,
@@ -28,7 +33,7 @@ object LabelRenderer {
             draw(this)
         }
 
-        val pixels = IntArray(width * height)
+        var pixels = IntArray(width * height)
         bitmap.readPixels(
             buffer = pixels,
             startX = 0,
@@ -39,6 +44,9 @@ object LabelRenderer {
             stride = width,
         )
 
-        return MonochromeEncoder.encode(pixels, width, height, horizontalOffset, verticalOffset)
+        val (rotatedPixels, rotatedWidth, rotatedHeight) =
+            MonochromeEncoder.rotatePixels(pixels, width, height, rotationDegrees)
+
+        return MonochromeEncoder.encode(rotatedPixels, rotatedWidth, rotatedHeight, horizontalOffset, verticalOffset)
     }
 }

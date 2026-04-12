@@ -6,6 +6,49 @@ object MonochromeEncoder {
 
     fun bytesPerRow(width: Int): Int = ceil(width.toDouble() / 8.0).toInt()
 
+    /**
+     * Rotate ARGB pixel data by the given degrees (0, 90, 180, 270, or negative equivalents).
+     * Returns the rotated pixels and the new (width, height).
+     */
+    fun rotatePixels(pixels: IntArray, width: Int, height: Int, degrees: Int): Triple<IntArray, Int, Int> {
+        val normalized = ((degrees % 360) + 360) % 360
+        return when (normalized) {
+            0 -> Triple(pixels, width, height)
+            90 -> {
+                val newW = height
+                val newH = width
+                val rotated = IntArray(newW * newH)
+                for (y in 0 until height) {
+                    for (x in 0 until width) {
+                        rotated[x * newW + (height - 1 - y)] = pixels[y * width + x]
+                    }
+                }
+                Triple(rotated, newW, newH)
+            }
+            180 -> {
+                val rotated = IntArray(width * height)
+                for (y in 0 until height) {
+                    for (x in 0 until width) {
+                        rotated[(height - 1 - y) * width + (width - 1 - x)] = pixels[y * width + x]
+                    }
+                }
+                Triple(rotated, width, height)
+            }
+            270 -> {
+                val newW = height
+                val newH = width
+                val rotated = IntArray(newW * newH)
+                for (y in 0 until height) {
+                    for (x in 0 until width) {
+                        rotated[(width - 1 - x) * newW + y] = pixels[y * width + x]
+                    }
+                }
+                Triple(rotated, newW, newH)
+            }
+            else -> Triple(pixels, width, height)
+        }
+    }
+
     fun encode(
         pixels: IntArray,
         width: Int,
