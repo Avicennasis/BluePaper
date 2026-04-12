@@ -129,16 +129,20 @@ class PrinterClient(private val transport: BleTransport) {
                 transport.writeRaw(CommandBuilder.imageRow(y, lineData))
             }
 
-            repeat(200) {
-                if (endPagePrint()) return@repeat
-                delay(50)
+            run {
+                repeat(200) {
+                    if (endPagePrint()) return@run
+                    delay(50)
+                }
             }
 
-            repeat(600) {
-                val status = getPrintStatus()
-                onProgress?.invoke(status.page, quantity)
-                if (status.page >= quantity) return@repeat
-                delay(100)
+            run {
+                repeat(600) {
+                    val status = getPrintStatus()
+                    onProgress?.invoke(status.page, quantity)
+                    if (status.page >= quantity) return@run
+                    delay(100)
+                }
             }
 
             endPrint()
