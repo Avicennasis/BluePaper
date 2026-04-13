@@ -43,6 +43,8 @@ kotlin {
         val androidMain by getting {
             dependencies {
                 implementation("com.google.zxing:core:3.5.3")
+                implementation("androidx.activity:activity-compose:1.9.3")
+                implementation("androidx.core:core-ktx:1.15.0")
             }
         }
 

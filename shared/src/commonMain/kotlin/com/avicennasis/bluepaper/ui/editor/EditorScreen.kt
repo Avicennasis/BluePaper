@@ -39,6 +39,8 @@ fun EditorScreen(
     var showPrintDialog by remember { mutableStateOf(false) }
     var showTemplateDialog by remember { mutableStateOf(false) }
     var showBarcodePicker by remember { mutableStateOf(false) }
+    var saveRequested by remember { mutableStateOf(false) }
+    var loadRequested by remember { mutableStateOf(false) }
     var activeTab by remember { mutableStateOf(0) }
 
     val selectedElement = elements.find { it.id == selectedElementId }
@@ -67,16 +69,8 @@ fun EditorScreen(
             canRedo = canRedo,
             themeMode = themeMode,
             showGrid = showGrid,
-            onSave = {
-                val path = pickSaveFile("label.bpl")
-                if (path != null) writeTextFile(path, LabelDesign.toJson(state.toDesign()))
-            },
-            onLoad = {
-                val json = pickOpenFile()
-                if (json != null) {
-                    try { state.loadDesign(LabelDesign.fromJson(json)) } catch (_: Exception) { }
-                }
-            },
+            onSave = { saveRequested = true },
+            onLoad = { loadRequested = true },
             onUndo = { state.undo() },
             onRedo = { state.redo() },
             onTemplates = { showTemplateDialog = true },
@@ -227,6 +221,21 @@ fun EditorScreen(
             }
         }
     }
+
+    FileSaveEffect(
+        trigger = saveRequested,
+        defaultName = "label.bpl",
+        content = if (saveRequested) LabelDesign.toJson(state.toDesign()) else "",
+        onDone = { saveRequested = false },
+    )
+
+    FileLoadEffect(
+        trigger = loadRequested,
+        onLoaded = { json ->
+            try { state.loadDesign(LabelDesign.fromJson(json)) } catch (_: Exception) { }
+        },
+        onDone = { loadRequested = false },
+    )
 
     if (showPrintDialog) {
         PrintDialog(progress = printProgress, onDismiss = { showPrintDialog = false })

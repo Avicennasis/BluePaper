@@ -42,10 +42,12 @@
 - [ ] Bold/italic font weight variants
 - [ ] Multi-element z-ordering (bring to front / send to back)
 
-## Android (Backlog)
-- [ ] BLE runtime permissions flow (BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION)
-- [ ] Image picker via ActivityResult launcher (currently stubbed)
-- [ ] File save/load via Storage Access Framework (currently stubbed)
+## v0.5.0 — Android Platform (Complete)
+- [x] BLE runtime permissions with rationale dialog (SDK-aware: BLUETOOTH_SCAN+CONNECT on 12+, FINE_LOCATION on 8-11)
+- [x] Image picker via SAF OpenDocument (replaces disabled stub)
+- [x] File save/load via SAF CreateDocument/OpenDocument (composable effect pattern)
+- [x] ThemePreferences via SharedPreferences (persists theme choice)
+- [x] BlePermissionHandler wraps app in MainActivity
 
 ## iOS (Backlog)
 - [ ] Image picker via PHPicker (currently stubbed)
