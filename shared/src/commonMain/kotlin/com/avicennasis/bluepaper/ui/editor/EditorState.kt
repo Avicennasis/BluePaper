@@ -90,12 +90,18 @@ class EditorState(
     fun undo() {
         val restored = undoManager.undo(_elements.value) ?: return
         _elements.value = restored
+        if (restored.none { it.id == _selectedElementId.value }) {
+            _selectedElementId.value = null
+        }
         updateUndoState()
     }
 
     fun redo() {
         val restored = undoManager.redo(_elements.value) ?: return
         _elements.value = restored
+        if (restored.none { it.id == _selectedElementId.value }) {
+            _selectedElementId.value = null
+        }
         updateUndoState()
     }
 
@@ -318,9 +324,11 @@ class EditorState(
     }
 
     fun toggleBold(id: String) {
-        val el = _elements.value.find { it.id == id }
-        if (el is LabelElement.TextElement) {
-            setFontWeight(id, if (el.fontWeight == 700) 400 else 700)
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.TextElement)
+                el.copy(fontWeight = if (el.fontWeight == 700) 400 else 700)
+            else el
         }
     }
 
@@ -332,9 +340,11 @@ class EditorState(
     }
 
     fun toggleItalic(id: String) {
-        val el = _elements.value.find { it.id == id }
-        if (el is LabelElement.TextElement) {
-            setFontStyleValue(id, if (el.fontStyle == "italic") "normal" else "italic")
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.TextElement)
+                el.copy(fontStyle = if (el.fontStyle == "italic") "normal" else "italic")
+            else el
         }
     }
 

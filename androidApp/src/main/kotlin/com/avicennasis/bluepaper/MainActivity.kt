@@ -16,8 +16,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ThemePreferences.init(this)
         TemplateStorage.init(this)
-        val scanner = KableBleScanner()
         val transport = KableBleTransport()
+        val scanner = KableBleScanner(transport)
         setContent {
             BlePermissionHandler {
                 BluePaperApp(scanner, transport, lifecycleScope)

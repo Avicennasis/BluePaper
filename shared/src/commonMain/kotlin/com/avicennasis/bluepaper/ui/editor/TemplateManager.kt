@@ -125,10 +125,10 @@ object TemplateManager {
                             ?: DataStandard.RAW_TEXT,
                     )
                 } else {
-                    LabelElement.TextElement(id = id, x = x, y = y, text = "Barcode")
+                    LabelElement.TextElement(id = id, x = x, y = y, width = w, height = h, text = "Barcode")
                 }
             }
-            else -> LabelElement.TextElement(id = id, x = x, y = y, text = "Unknown")
+            else -> LabelElement.TextElement(id = id, x = x, y = y, width = w, height = h, text = "Unknown")
         }
     }
 

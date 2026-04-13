@@ -27,9 +27,10 @@ object CommandBuilder {
     fun startPrintV2(quantity: Int): NiimbotPacket {
         require(quantity in 1..65535) { "Quantity must be 1-65535, got $quantity" }
         val data = ByteArray(7)
-        data[0] = 0x00
-        data[1] = (quantity shr 8).toByte()
-        data[2] = (quantity and 0xFF).toByte()
+        data[0] = 0x00                          // Reserved
+        data[1] = (quantity shr 8).toByte()     // Quantity high byte (big-endian)
+        data[2] = (quantity and 0xFF).toByte()  // Quantity low byte
+        // data[3..6] = 0x00 — paper type, page mode, padding (unused)
         return NiimbotPacket(RequestCode.START_PRINT.code, data)
     }
 

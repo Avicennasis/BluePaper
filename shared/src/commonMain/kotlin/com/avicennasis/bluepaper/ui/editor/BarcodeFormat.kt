@@ -1,6 +1,9 @@
 package com.avicennasis.bluepaper.ui.editor
 
-enum class BarcodeLibrary { QROSE, ZXING }
+enum class BarcodeLibrary {
+    QROSE, // Reserved — requires Kotlin 2.3.0+, currently unused
+    ZXING,
+}
 
 enum class ErrorCorrection(val displayName: String) {
     L("Low (7%)"),

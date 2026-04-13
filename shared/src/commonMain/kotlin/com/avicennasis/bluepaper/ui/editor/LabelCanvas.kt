@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -38,6 +40,17 @@ fun LabelCanvas(
     if (widthPx <= 0 || heightPx <= 0) return
     val ratio = widthPx.toFloat() / heightPx.toFloat()
 
+    val barcodeBitmaps = remember(elements) {
+        elements.filterIsInstance<LabelElement.BarcodeElement>().associate { el ->
+            el.id to BarcodeRenderer.render(
+                el.format, el.data,
+                el.width.toInt().coerceAtLeast(1),
+                el.height.toInt().coerceAtLeast(1),
+                el.errorCorrection,
+            )
+        }
+    }
+
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -53,7 +66,7 @@ fun LabelCanvas(
         }
 
         for (element in elements) {
-            drawElement(element, scaleFactor, textMeasurer)
+            drawElement(element, scaleFactor, textMeasurer, barcodeBitmaps)
         }
 
         val selected = elements.find { it.id == selectedElementId }
@@ -70,11 +83,12 @@ private fun DrawScope.drawElement(
     element: LabelElement,
     scaleFactor: Float,
     textMeasurer: TextMeasurer,
+    barcodeBitmaps: Map<String, ImageBitmap?>? = null,
 ) {
     when (element) {
         is LabelElement.TextElement -> drawTextElement(element, scaleFactor, textMeasurer)
         is LabelElement.ImageElement -> drawImageElement(element, scaleFactor)
-        is LabelElement.BarcodeElement -> drawBarcodeElement(element, scaleFactor, textMeasurer)
+        is LabelElement.BarcodeElement -> drawBarcodeElement(element, scaleFactor, textMeasurer, barcodeBitmaps)
     }
 }
 
@@ -82,19 +96,24 @@ private fun DrawScope.drawBarcodeElement(
     el: LabelElement.BarcodeElement,
     scaleFactor: Float,
     textMeasurer: TextMeasurer,
+    barcodeBitmaps: Map<String, ImageBitmap?>? = null,
 ) {
     val screenX = el.x * scaleFactor
     val screenY = el.y * scaleFactor
     val screenW = el.width * scaleFactor
     val screenH = el.height * scaleFactor
 
-    val bitmap = BarcodeRenderer.render(
-        format = el.format,
-        data = el.data,
-        width = el.width.toInt().coerceAtLeast(1),
-        height = el.height.toInt().coerceAtLeast(1),
-        errorCorrection = el.errorCorrection,
-    )
+    val bitmap = if (barcodeBitmaps != null && el.id in barcodeBitmaps) {
+        barcodeBitmaps[el.id]
+    } else {
+        BarcodeRenderer.render(
+            format = el.format,
+            data = el.data,
+            width = el.width.toInt().coerceAtLeast(1),
+            height = el.height.toInt().coerceAtLeast(1),
+            errorCorrection = el.errorCorrection,
+        )
+    }
 
     if (bitmap != null) {
         drawImage(

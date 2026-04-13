@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 @OptIn(kotlin.uuid.ExperimentalUuidApi::class)
-class KableBleScanner : BleScanner {
+class KableBleScanner(
+    private val transport: KableBleTransport,
+) : BleScanner {
 
     override fun scan(namePrefix: String): Flow<ScannedDevice> {
         val scanner = Scanner {
@@ -18,6 +20,7 @@ class KableBleScanner : BleScanner {
         }
 
         return scanner.advertisements.map { advertisement ->
+            transport.cacheAdvertisement(advertisement)
             ScannedDevice(
                 name = advertisement.name ?: "",
                 address = advertisement.identifier.toString(),

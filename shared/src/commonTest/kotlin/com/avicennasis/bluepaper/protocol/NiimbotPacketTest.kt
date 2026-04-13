@@ -23,8 +23,8 @@ class NiimbotPacketTest {
 
     @Test
     fun checksumIsXorOfTypeLengthAndData() {
-        val packet = NiimbotPacket(type = 0x40, data = byteArrayOf(0x01))
-        assertEquals(0x40, packet.checksum)
+        val packet = NiimbotPacket(type = 0x40, data = byteArrayOf(0x05))
+        assertEquals(0x44, packet.checksum) // 0x40 XOR 0x01 XOR 0x05 = 0x44
     }
 
     @Test
@@ -123,16 +123,6 @@ class NiimbotPacketTest {
         // type=0x40, data=[0x03], len=1 → checksum = 0x40 XOR 0x01 XOR 0x03 = 0x42
         val packet = NiimbotPacket(type = 0x40, data = byteArrayOf(0x03))
         assertEquals(0x42, packet.checksum)
-    }
-
-    @Test
-    fun imageRowLargeYValue() {
-        // Verify big-endian y encoding for y > 255
-        val rowData = byteArrayOf(0xFF.toByte())
-        val packet = CommandBuilder.imageRow(256, rowData)
-        // y=256 → header[0]=0x01, header[1]=0x00
-        assertEquals(0x01.toByte(), packet.data[0])
-        assertEquals(0x00.toByte(), packet.data[1])
     }
 
     @Test

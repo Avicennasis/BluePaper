@@ -143,4 +143,14 @@ class CommandBuilderTest {
         val expectedData = byteArrayOf(0x00, 0x2A, 0x00, 0x00, 0x00, 0x01, 0xFF.toByte(), 0x00)
         assertContentEquals(expectedData, pkt.data)
     }
+
+    @Test
+    fun imageRowLargeYValue() {
+        // Verify big-endian y encoding for y > 255
+        val rowData = byteArrayOf(0xFF.toByte())
+        val packet = CommandBuilder.imageRow(256, rowData)
+        // y=256 → header[0]=0x01, header[1]=0x00
+        assertEquals(0x01.toByte(), packet.data[0])
+        assertEquals(0x00.toByte(), packet.data[1])
+    }
 }

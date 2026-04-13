@@ -16,6 +16,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import com.avicennasis.bluepaper.image.LabelRenderer
 import com.avicennasis.bluepaper.ui.theme.ThemeMode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,12 +51,19 @@ fun EditorScreen(
     val selectedElement = elements.find { it.id == selectedElementId }
     val focusRequester = remember { FocusRequester() }
 
-    val monochromeRows = remember(elements, selectedLabelSize, selectedModel) {
-        val w = selectedLabelSize.widthPx
-        val h = selectedLabelSize.heightPx
-        if (w <= 0 || h <= 0) emptyList()
-        else LabelRenderer.render(w, h, rotationDegrees = selectedModel.rotation) { scope ->
-            drawElementsForPrint(scope, elements, textMeasurer)
+    val monochromeRows by produceState<List<ByteArray>>(
+        initialValue = emptyList(),
+        key1 = elements,
+        key2 = selectedLabelSize,
+        key3 = selectedModel,
+    ) {
+        value = withContext(Dispatchers.Default) {
+            val w = selectedLabelSize.widthPx
+            val h = selectedLabelSize.heightPx
+            if (w <= 0 || h <= 0) emptyList()
+            else LabelRenderer.render(w, h, rotationDegrees = selectedModel.rotation) { scope ->
+                drawElementsForPrint(scope, elements, textMeasurer)
+            }
         }
     }
     val previewWidth = remember(selectedLabelSize, selectedModel) {

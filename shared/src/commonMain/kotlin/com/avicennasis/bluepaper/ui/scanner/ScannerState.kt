@@ -38,7 +38,7 @@ class ScannerState(
 
         scanJob = scope.launch {
             try {
-                val prefixes = DeviceRegistry.models()
+                val prefixes = DeviceRegistry.scanPrefixes()
                 prefixes.map { scanner.scan(it) }.merge().collect { device ->
                     val current = _devices.value
                     if (current.none { it.address == device.address }) {

@@ -84,7 +84,7 @@ fun ScannerScreen(
             }
         } else {
             LazyColumn(modifier = Modifier.weight(1f)) {
-                items(devices) { device ->
+                items(devices, key = { it.address }) { device ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()

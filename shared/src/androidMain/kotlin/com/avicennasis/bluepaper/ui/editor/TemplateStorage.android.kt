@@ -12,6 +12,12 @@ actual object TemplateStorage {
         dir = File(context.filesDir, "templates").also { it.mkdirs() }
     }
 
+    private fun checkInitialized() {
+        check(::dir.isInitialized) {
+            "TemplateStorage.init(context) must be called before using template operations"
+        }
+    }
+
     private fun slugify(name: String): String =
         name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
 
@@ -35,11 +41,13 @@ actual object TemplateStorage {
     }
 
     actual fun save(template: LabelTemplate) {
+        checkInitialized()
         val file = resolveFile(slugify(template.name), template.name)
         file.writeText(json.encodeToString(LabelTemplate.serializer(), template))
     }
 
     actual fun loadAll(): List<LabelTemplate> {
+        checkInitialized()
         return dir.listFiles { f -> f.extension == "json" }?.mapNotNull { file ->
             try {
                 json.decodeFromString(LabelTemplate.serializer(), file.readText())
@@ -48,6 +56,7 @@ actual object TemplateStorage {
     }
 
     actual fun delete(name: String) {
+        checkInitialized()
         val files = dir.listFiles { f -> f.extension == "json" } ?: return
         for (file in files) {
             try {

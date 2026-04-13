@@ -6,13 +6,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun TemplatePickerDialog(
@@ -21,7 +26,11 @@ fun TemplatePickerDialog(
     onSelect: (LabelTemplate) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var savedTemplates by remember { mutableStateOf(TemplateStorage.loadAll()) }
+    var savedTemplates by remember { mutableStateOf<List<LabelTemplate>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        savedTemplates = withContext(Dispatchers.IO) { TemplateStorage.loadAll() }
+    }
+    val scope = rememberCoroutineScope()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -59,7 +68,10 @@ fun TemplatePickerDialog(
                                 onClick = { onSelect(template) },
                                 onDelete = {
                                     TemplateStorage.delete(template.name)
-                                    savedTemplates = TemplateStorage.loadAll()
+                                    scope.launch(Dispatchers.IO) {
+                                        val refreshed = TemplateStorage.loadAll()
+                                        withContext(Dispatchers.Main) { savedTemplates = refreshed }
+                                    }
                                 },
                             )
                         }

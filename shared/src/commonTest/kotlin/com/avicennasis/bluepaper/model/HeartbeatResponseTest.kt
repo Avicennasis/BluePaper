@@ -50,6 +50,8 @@ class HeartbeatResponseTest {
     fun parse20ByteResponse() {
         val data = ByteArray(20).also { it[18] = 1; it[19] = 1 }
         val hb = HeartbeatResponse.fromData(data)
+        assertNull(hb.closingState)
+        assertNull(hb.powerLevel)
         assertEquals(1, hb.paperState)
         assertEquals(1, hb.rfidReadState)
     }
