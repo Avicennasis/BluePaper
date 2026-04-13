@@ -86,12 +86,13 @@ object TemplateManager {
         labelWidthPx: Int,
         labelHeightPx: Int,
         idPrefix: String,
+        index: Int = 0,
     ): LabelElement {
         val x = templateEl.xFraction * labelWidthPx
         val y = templateEl.yFraction * labelHeightPx
         val w = templateEl.widthFraction * labelWidthPx
         val h = templateEl.heightFraction * labelHeightPx
-        val id = "${idPrefix}_${templateEl.hashCode()}"
+        val id = "${idPrefix}_${index}"
 
         return when (templateEl.type) {
             "text" -> LabelElement.TextElement(
@@ -138,7 +139,7 @@ object TemplateManager {
         labelHeightPx: Int,
     ): List<LabelElement> {
         return template.elements.mapIndexed { index, el ->
-            scaleToLabel(el, labelWidthPx, labelHeightPx, idPrefix = "tmpl$index")
+            scaleToLabel(el, labelWidthPx, labelHeightPx, idPrefix = "tmpl$index", index = index)
         }
     }
 }

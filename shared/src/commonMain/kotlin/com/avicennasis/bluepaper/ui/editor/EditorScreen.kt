@@ -51,11 +51,9 @@ fun EditorScreen(
     val selectedElement = elements.find { it.id == selectedElementId }
     val focusRequester = remember { FocusRequester() }
 
-    val monochromeRows by produceState<List<ByteArray>>(
-        initialValue = emptyList(),
-        key1 = elements,
-        key2 = selectedLabelSize,
-        key3 = selectedModel,
+    val monochromeRows by produceState(
+        initialValue = emptyList<ByteArray>(),
+        keys = arrayOf(elements, selectedLabelSize, selectedModel, textMeasurer),
     ) {
         value = withContext(Dispatchers.Default) {
             val w = selectedLabelSize.widthPx

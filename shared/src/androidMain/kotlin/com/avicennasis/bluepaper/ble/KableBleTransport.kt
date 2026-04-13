@@ -65,6 +65,8 @@ class KableBleTransport : BleTransport {
     suspend fun connectWithPeripheral(kablePeripheral: Peripheral) {
         println("[KableBleTransport] connectWithPeripheral() starting")
         _connectionState.value = ConnectionState.CONNECTING
+        // Clear any stale notifications from previous session
+        while (responseChannel.tryReceive().isSuccess) { }
 
         try {
             peripheral = kablePeripheral
@@ -140,6 +142,8 @@ class KableBleTransport : BleTransport {
         } catch (_: Exception) { }
         peripheral = null
         notifyCharacteristic = null
+        // Drain stale notifications from the channel
+        while (responseChannel.tryReceive().isSuccess) { }
         _connectionState.value = ConnectionState.DISCONNECTED
         println("[KableBleTransport] Disconnected")
     }

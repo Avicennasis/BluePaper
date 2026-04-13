@@ -67,8 +67,8 @@ fun TemplatePickerDialog(
                                 template = template,
                                 onClick = { onSelect(template) },
                                 onDelete = {
-                                    TemplateStorage.delete(template.name)
                                     scope.launch(Dispatchers.IO) {
+                                        TemplateStorage.delete(template.name)
                                         val refreshed = TemplateStorage.loadAll()
                                         withContext(Dispatchers.Main) { savedTemplates = refreshed }
                                     }

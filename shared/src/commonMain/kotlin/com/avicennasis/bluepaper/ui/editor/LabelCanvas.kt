@@ -40,7 +40,12 @@ fun LabelCanvas(
     if (widthPx <= 0 || heightPx <= 0) return
     val ratio = widthPx.toFloat() / heightPx.toFloat()
 
-    val barcodeBitmaps = remember(elements) {
+    val barcodeKey = remember(elements) {
+        elements.filterIsInstance<LabelElement.BarcodeElement>().map { el ->
+            listOf(el.id, el.data, el.format, el.width.toInt(), el.height.toInt(), el.errorCorrection)
+        }
+    }
+    val barcodeBitmaps = remember(barcodeKey) {
         elements.filterIsInstance<LabelElement.BarcodeElement>().associate { el ->
             el.id to BarcodeRenderer.render(
                 el.format, el.data,

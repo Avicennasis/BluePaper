@@ -78,13 +78,17 @@ class EditorState(
         updateUndoState()
     }
 
-    private var interactionSnapshotSaved = false
+    private val interactionSnapshotsInProgress = mutableSetOf<String>()
 
-    private fun saveUndoSnapshotIfNeeded() {
-        if (!interactionSnapshotSaved) {
+    private fun saveUndoSnapshotIfNeeded(operationKey: String) {
+        if (operationKey !in interactionSnapshotsInProgress) {
             saveUndoSnapshot()
-            interactionSnapshotSaved = true
+            interactionSnapshotsInProgress.add(operationKey)
         }
+    }
+
+    private fun finishInteraction(operationKey: String) {
+        interactionSnapshotsInProgress.remove(operationKey)
     }
 
     fun undo() {
@@ -144,7 +148,7 @@ class EditorState(
     }
 
     fun moveElement(id: String, x: Float, y: Float) {
-        saveUndoSnapshotIfNeeded()
+        saveUndoSnapshotIfNeeded("move_$id")
         val labelSize = _selectedLabelSize.value
         updateElement(id) { el ->
             val moved = when (el) {
@@ -156,10 +160,10 @@ class EditorState(
         }
     }
 
-    fun moveElementDone(id: String) { interactionSnapshotSaved = false }
+    fun moveElementDone(id: String) { finishInteraction("move_$id") }
 
     fun resizeElement(id: String, width: Float, height: Float) {
-        saveUndoSnapshotIfNeeded()
+        saveUndoSnapshotIfNeeded("resize_$id")
         val w = width.coerceAtLeast(MIN_ELEMENT_SIZE)
         val h = height.coerceAtLeast(MIN_ELEMENT_SIZE)
         updateElement(id) { el ->
@@ -171,7 +175,7 @@ class EditorState(
         }
     }
 
-    fun resizeElementDone(id: String) { interactionSnapshotSaved = false }
+    fun resizeElementDone(id: String) { finishInteraction("resize_$id") }
 
     fun setElementPosition(id: String, x: Float, y: Float, width: Float, height: Float) {
         saveUndoSnapshot()
@@ -196,22 +200,22 @@ class EditorState(
     }
 
     fun setTextContent(id: String, text: String) {
-        saveUndoSnapshotIfNeeded()
+        saveUndoSnapshotIfNeeded("text_$id")
         updateElement(id) { el ->
             if (el is LabelElement.TextElement) el.copy(text = text) else el
         }
     }
 
-    fun setTextContentDone(id: String) { interactionSnapshotSaved = false }
+    fun setTextContentDone(id: String) { finishInteraction("text_$id") }
 
     fun setFontSize(id: String, size: Float) {
-        saveUndoSnapshotIfNeeded()
+        saveUndoSnapshotIfNeeded("fontSize_$id")
         updateElement(id) { el ->
             if (el is LabelElement.TextElement) el.copy(fontSize = size) else el
         }
     }
 
-    fun setFontSizeDone(id: String) { interactionSnapshotSaved = false }
+    fun setFontSizeDone(id: String) { finishInteraction("fontSize_$id") }
 
     fun setFontFamily(id: String, fontFamily: String) {
         saveUndoSnapshot()
@@ -221,13 +225,13 @@ class EditorState(
     }
 
     fun setImageScale(id: String, scale: Float) {
-        saveUndoSnapshotIfNeeded()
+        saveUndoSnapshotIfNeeded("scale_$id")
         updateElement(id) { el ->
             if (el is LabelElement.ImageElement) el.copy(scale = scale.coerceIn(0.1f, 5f)) else el
         }
     }
 
-    fun setImageScaleDone(id: String) { interactionSnapshotSaved = false }
+    fun setImageScaleDone(id: String) { finishInteraction("scale_$id") }
 
     fun toggleImageFlipH(id: String) {
         saveUndoSnapshot()
@@ -270,13 +274,13 @@ class EditorState(
     }
 
     fun setBarcodeData(id: String, data: String) {
-        saveUndoSnapshotIfNeeded()
+        saveUndoSnapshotIfNeeded("barcodeData_$id")
         updateElement(id) { el ->
             if (el is LabelElement.BarcodeElement) el.copy(data = data) else el
         }
     }
 
-    fun setBarcodeDataDone(id: String) { interactionSnapshotSaved = false }
+    fun setBarcodeDataDone(id: String) { finishInteraction("barcodeData_$id") }
 
     fun setBarcodeFormat(id: String, format: BarcodeFormat) {
         saveUndoSnapshot()
@@ -303,7 +307,7 @@ class EditorState(
     }
 
     fun setBarcodeStructuredData(id: String, fields: Map<String, String>) {
-        saveUndoSnapshotIfNeeded()
+        saveUndoSnapshotIfNeeded("barcodeStruct_$id")
         updateElement(id) { el ->
             if (el is LabelElement.BarcodeElement) {
                 val encoded = DataEncoderRegistry.encode(el.dataStandard, fields)
@@ -312,7 +316,7 @@ class EditorState(
         }
     }
 
-    fun setBarcodeStructuredDataDone(id: String) { interactionSnapshotSaved = false }
+    fun setBarcodeStructuredDataDone(id: String) { finishInteraction("barcodeStruct_$id") }
 
     // --- Bold/Italic ---
 
@@ -457,6 +461,12 @@ class EditorState(
     }
 
     fun print(imageRows: List<ByteArray>, width: Int, height: Int) {
+        if (imageRows.isEmpty()) {
+            _printProgress.value = PrintProgress(0, 0, false, error = "Label is still rendering, please wait")
+            return
+        }
+        if (_printProgress.value.isPrinting) return  // already printing
+
         val config = _selectedModel.value
         val qty = _quantity.value
         val dens = _density.value
