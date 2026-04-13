@@ -41,6 +41,7 @@ object MonochromeEncoder {
         height: Int,
         horizontalOffset: Int = 0,
         verticalOffset: Int = 0,
+        maxWidth: Int = Int.MAX_VALUE,
     ): List<ByteArray> {
         if (width <= 0 || height <= 0) return emptyList()
 
@@ -67,7 +68,7 @@ object MonochromeEncoder {
         if (horizontalOffset >= 0) {
             srcStartCol = 0
             blankColsLeft = horizontalOffset
-            effectiveWidth = width + horizontalOffset
+            effectiveWidth = (width + horizontalOffset).coerceAtMost(maxWidth)
         } else {
             srcStartCol = -horizontalOffset
             blankColsLeft = 0

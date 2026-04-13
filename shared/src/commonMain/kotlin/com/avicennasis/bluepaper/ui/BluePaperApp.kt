@@ -11,6 +11,8 @@ import com.avicennasis.bluepaper.ui.scanner.ScannerState
 import com.avicennasis.bluepaper.ui.theme.BluePaperTheme
 import com.avicennasis.bluepaper.ui.theme.ThemeMode
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 enum class Screen { Scanner, Editor }
 
@@ -22,7 +24,13 @@ fun BluePaperApp(
     startScreen: Screen = Screen.Scanner,
 ) {
     var currentScreen by remember { mutableStateOf(startScreen) }
-    var themeMode by remember { mutableStateOf(ThemePreferences.load()) }
+    var themeMode by remember { mutableStateOf(ThemeMode.System) }
+
+    // Load persisted theme preference asynchronously to avoid synchronous file I/O
+    LaunchedEffect(Unit) {
+        val saved = withContext(Dispatchers.IO) { ThemePreferences.load() }
+        themeMode = saved
+    }
 
     val scannerState = remember { ScannerState(scanner, transport, scope) }
     val editorState = remember { EditorState(transport, scope) }

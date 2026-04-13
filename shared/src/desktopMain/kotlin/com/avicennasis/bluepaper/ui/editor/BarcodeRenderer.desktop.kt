@@ -36,13 +36,34 @@ actual object BarcodeRenderer {
         val bitmap = try {
             val zxingFormat = mapFormat(format)
             val hints = mutableMapOf<com.google.zxing.EncodeHintType, Any>()
-            if (format == BarcodeFormat.QR_CODE) {
-                hints[com.google.zxing.EncodeHintType.ERROR_CORRECTION] = when (errorCorrection) {
-                    ErrorCorrection.L -> com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.L
-                    ErrorCorrection.M -> com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.M
-                    ErrorCorrection.Q -> com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.Q
-                    ErrorCorrection.H -> com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.H
+            when (format) {
+                BarcodeFormat.QR_CODE -> {
+                    hints[com.google.zxing.EncodeHintType.ERROR_CORRECTION] = when (errorCorrection) {
+                        ErrorCorrection.L -> com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.L
+                        ErrorCorrection.M -> com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.M
+                        ErrorCorrection.Q -> com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.Q
+                        ErrorCorrection.H -> com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.H
+                    }
                 }
+                BarcodeFormat.AZTEC -> {
+                    val percentage = when (errorCorrection) {
+                        ErrorCorrection.L -> 23
+                        ErrorCorrection.M -> 33
+                        ErrorCorrection.Q -> 50
+                        ErrorCorrection.H -> 75
+                    }
+                    hints[com.google.zxing.EncodeHintType.ERROR_CORRECTION] = percentage
+                }
+                BarcodeFormat.PDF_417 -> {
+                    val level = when (errorCorrection) {
+                        ErrorCorrection.L -> 2
+                        ErrorCorrection.M -> 4
+                        ErrorCorrection.Q -> 6
+                        ErrorCorrection.H -> 8
+                    }
+                    hints[com.google.zxing.EncodeHintType.ERROR_CORRECTION] = level
+                }
+                else -> {} // No EC support
             }
             val matrix = MultiFormatWriter().encode(data, zxingFormat, width, height, hints)
             matrix.toImageBitmap()

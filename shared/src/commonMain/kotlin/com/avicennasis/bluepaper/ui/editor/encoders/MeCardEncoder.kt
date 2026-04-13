@@ -9,6 +9,14 @@ class MeCardEncoder : DataEncoder {
 
     override val standard: DataStandard = DataStandard.MECARD
 
+    private fun escapeMeCard(value: String): String = value
+        .replace("\\", "\\\\")
+        .replace(";", "\\;")
+
+    private fun unescapeMeCard(value: String): String = value
+        .replace("\\;", ";")
+        .replace("\\\\", "\\")
+
     override fun fields(): List<DataField> = listOf(
         DataField(
             key = "name",
@@ -70,12 +78,12 @@ class MeCardEncoder : DataEncoder {
 
         for (part in splitFields(body)) {
             when {
-                part.startsWith("N:") -> result["name"] = part.removePrefix("N:")
-                part.startsWith("TEL:") -> result["phone"] = part.removePrefix("TEL:")
-                part.startsWith("EMAIL:") -> result["email"] = part.removePrefix("EMAIL:")
-                part.startsWith("URL:") -> result["url"] = part.removePrefix("URL:")
-                part.startsWith("ADR:") -> result["address"] = part.removePrefix("ADR:")
-                part.startsWith("NOTE:") -> result["note"] = part.removePrefix("NOTE:")
+                part.startsWith("N:") -> result["name"] = unescapeMeCard(part.removePrefix("N:"))
+                part.startsWith("TEL:") -> result["phone"] = unescapeMeCard(part.removePrefix("TEL:"))
+                part.startsWith("EMAIL:") -> result["email"] = unescapeMeCard(part.removePrefix("EMAIL:"))
+                part.startsWith("URL:") -> result["url"] = unescapeMeCard(part.removePrefix("URL:"))
+                part.startsWith("ADR:") -> result["address"] = unescapeMeCard(part.removePrefix("ADR:"))
+                part.startsWith("NOTE:") -> result["note"] = unescapeMeCard(part.removePrefix("NOTE:"))
             }
         }
         return result
@@ -83,7 +91,7 @@ class MeCardEncoder : DataEncoder {
 
     private fun appendField(sb: StringBuilder, prefix: String, value: String?) {
         if (!value.isNullOrEmpty()) {
-            sb.append("$prefix:$value;")
+            sb.append("$prefix:${escapeMeCard(value)};")
         }
     }
 

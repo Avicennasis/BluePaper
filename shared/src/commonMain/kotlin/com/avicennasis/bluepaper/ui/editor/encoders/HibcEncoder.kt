@@ -9,6 +9,13 @@ class HibcEncoder : DataEncoder {
 
     override val standard = DataStandard.HIBC
 
+    private val hibcCharset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. \$/+%"
+
+    private fun computeCheckCharacter(data: String): Char {
+        val sum = data.sumOf { ch -> hibcCharset.indexOf(ch).let { idx -> if (idx < 0) 0 else idx } }
+        return hibcCharset[sum % 43]
+    }
+
     override fun fields(): List<DataField> = listOf(
         // LIC must be exactly 4 uppercase alphanumeric characters per HIBC standard
         DataField("lic", "Labeler ID Code", required = true),
@@ -20,16 +27,22 @@ class HibcEncoder : DataEncoder {
     override fun encode(fields: Map<String, String>): String {
         val rawLic = fields["lic"].orEmpty().uppercase()
         // Validate and normalize LIC to exactly 4 uppercase alphanumeric characters
-        val lic = rawLic.filter { it.isLetterOrDigit() }.take(4).padEnd(4, ' ')
+        val lic = rawLic.filter { it.isLetterOrDigit() }.take(4).uppercase().padEnd(4, '0')
         val pcn = fields["pcn"].orEmpty()
         val uom = fields["uom"]?.takeIf { it.isNotEmpty() } ?: "0"
         val quantity = fields["quantity"]
 
         return buildString {
-            append("+$lic$pcn$uom")
+            val primary = "$lic$pcn$uom"
+            append("+$primary")
             if (!quantity.isNullOrEmpty()) {
                 append("/$quantity")
             }
+            // Data for check character is everything after the leading '+'
+            val dataForCheck = toString().removePrefix("+")
+            val check = computeCheckCharacter(dataForCheck)
+            append(check)
+            append("+")
         }
     }
 
@@ -39,6 +52,10 @@ class HibcEncoder : DataEncoder {
 
         if (body.startsWith("+")) {
             body = body.removePrefix("+")
+        }
+        // Strip terminating '+' and check character
+        if (body.endsWith("+") && body.length >= 2) {
+            body = body.dropLast(2) // drop check char + terminating '+'
         }
 
         val slashIndex = body.indexOf('/')

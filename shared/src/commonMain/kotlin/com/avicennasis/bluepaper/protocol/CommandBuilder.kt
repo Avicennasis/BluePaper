@@ -75,6 +75,7 @@ object CommandBuilder {
         NiimbotPacket(RequestCode.GET_PRINT_STATUS.code, byteArrayOf(0x01))
 
     fun imageRow(y: Int, lineData: ByteArray): NiimbotPacket {
+        require(lineData.size <= 249) { "Image row data too large: ${lineData.size} bytes (max 249 for packet payload limit)" }
         val header = ByteArray(6)
         header[0] = (y shr 8).toByte()
         header[1] = (y and 0xFF).toByte()

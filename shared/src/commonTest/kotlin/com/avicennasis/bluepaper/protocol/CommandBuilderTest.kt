@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertContentEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class CommandBuilderTest {
 
@@ -142,6 +143,26 @@ class CommandBuilderTest {
         assertEquals(IMAGE_DATA_TYPE, pkt.type)
         val expectedData = byteArrayOf(0x00, 0x2A, 0x00, 0x00, 0x00, 0x01, 0xFF.toByte(), 0x00)
         assertContentEquals(expectedData, pkt.data)
+    }
+
+    @Test
+    fun imageRowNormalSizeLineData() {
+        // B21 printer width: 384 pixels / 8 = 48 bytes per row
+        val lineData = ByteArray(48) { 0xFF.toByte() }
+        val pkt = CommandBuilder.imageRow(y = 0, lineData = lineData)
+        assertEquals(IMAGE_DATA_TYPE, pkt.type)
+        // 6-byte header + 48 bytes lineData = 54 bytes total
+        assertEquals(54, pkt.data.size)
+    }
+
+    @Test
+    fun imageRowRejectsOversizedLineData() {
+        val oversized = ByteArray(250)
+        val ex = assertFailsWith<IllegalArgumentException> {
+            CommandBuilder.imageRow(y = 0, lineData = oversized)
+        }
+        assertTrue(ex.message!!.contains("250"))
+        assertTrue(ex.message!!.contains("max 249"))
     }
 
     @Test

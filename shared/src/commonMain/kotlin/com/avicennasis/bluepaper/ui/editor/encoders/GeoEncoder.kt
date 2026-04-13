@@ -9,8 +9,8 @@ object GeoEncoder : DataEncoder {
     override val standard = DataStandard.GEO
 
     override fun fields(): List<DataField> = listOf(
-        DataField("latitude", "Latitude", required = true, hint = "40.7128", fieldType = FieldType.NUMBER),
-        DataField("longitude", "Longitude", required = true, hint = "-74.0060", fieldType = FieldType.NUMBER),
+        DataField("latitude", "Latitude (-90 to 90)", required = true, hint = "40.7128", fieldType = FieldType.NUMBER),
+        DataField("longitude", "Longitude (-180 to 180)", required = true, hint = "-74.0060", fieldType = FieldType.NUMBER),
     )
 
     override fun encode(fields: Map<String, String>): String {
@@ -21,7 +21,7 @@ object GeoEncoder : DataEncoder {
 
     override fun decode(data: String): Map<String, String> {
         val stripped = data.removePrefix("geo:")
-        val parts = stripped.split(",", limit = 2)
+        val parts = stripped.split(",", limit = 3)
         return mapOf(
             "latitude" to parts.getOrElse(0) { "" },
             "longitude" to parts.getOrElse(1) { "" },

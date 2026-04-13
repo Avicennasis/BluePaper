@@ -15,14 +15,16 @@ actual fun FileSaveEffect(
 ) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
         uri?.let {
             try {
                 context.contentResolver.openOutputStream(it)?.use { stream ->
                     stream.write(content.toByteArray(Charsets.UTF_8))
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
         onDone()
     }
@@ -50,14 +52,16 @@ actual fun FileLoadEffect(
                     val json = stream.bufferedReader().readText()
                     onLoaded(json)
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
         onDone()
     }
 
     LaunchedEffect(trigger) {
         if (trigger) {
-            launcher.launch(arrayOf("application/json", "*/*"))
+            launcher.launch(arrayOf("application/octet-stream", "*/*"))
         }
     }
 }

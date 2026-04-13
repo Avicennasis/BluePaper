@@ -67,6 +67,9 @@ class NiimbotPacket(
             require(raw.size >= expectedEnd) {
                 "Packet truncated: need $expectedEnd bytes, have ${raw.size}"
             }
+            require(raw.size == expectedEnd) {
+                "Packet has ${raw.size - expectedEnd} trailing bytes (expected exactly $expectedEnd bytes)"
+            }
             require(raw[expectedEnd - 1] == FOOTER && raw[expectedEnd - 2] == FOOTER) {
                 "Invalid footer"
             }

@@ -166,6 +166,44 @@ class VCardEncoderTest {
     }
 
     @Test
+    fun roundTripNameWithSemicolon() {
+        val input = mapOf(
+            "firstName" to "Miles",
+            "lastName" to "O'Brien; Jr.",
+            "phone" to "+1-555-0100",
+            "email" to "miles@ds9.fed",
+        )
+        val encoded = encoder.encode(input)
+        val decoded = encoder.decode(encoded)
+        assertEquals("O'Brien; Jr.", decoded["lastName"])
+        assertEquals("Miles", decoded["firstName"])
+    }
+
+    @Test
+    fun roundTripAddressWithComma() {
+        val input = mapOf(
+            "lastName" to "Test",
+            "street" to "100 Main St, Suite 4",
+            "city" to "Springfield",
+        )
+        val encoded = encoder.encode(input)
+        val decoded = encoder.decode(encoded)
+        assertEquals("100 Main St, Suite 4", decoded["street"])
+        assertEquals("Springfield", decoded["city"])
+    }
+
+    @Test
+    fun roundTripNoteWithNewline() {
+        val input = mapOf(
+            "lastName" to "Test",
+            "note" to "Line one\nLine two",
+        )
+        val encoded = encoder.encode(input)
+        val decoded = encoder.decode(encoded)
+        assertEquals("Line one\nLine two", decoded["note"])
+    }
+
+    @Test
     fun fieldCount() {
         assertEquals(13, encoder.fields().size)
     }

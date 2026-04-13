@@ -62,9 +62,9 @@ class MonochromeEncoderTest {
     }
 
     @Test
-    fun threshold128IsExact() {
-        // gray(128): luminance rounds to 127 via float truncation → inverted=128 → ON (black)
-        // gray(129): luminance rounds to 129 → inverted=126 → OFF (white)
+    fun thresholdBoundary() {
+        // gray(128): luminance truncates to 127 via float rounding → inverted=128 → ON (black)
+        // gray(129): luminance truncates to 128 → inverted=127 → OFF (white)
         val pixels = intArrayOf(gray(128), gray(129), gray(128), gray(129), gray(128), gray(129), gray(128), gray(129))
         val rows = MonochromeEncoder.encode(pixels, width = 8, height = 1)
         assertContentEquals(byteArrayOf(0xAA.toByte()), rows[0])

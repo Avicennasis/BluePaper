@@ -32,6 +32,7 @@ class ScannerState(
 
     fun startScan() {
         if (_isScanning.value) return
+        scanJob?.cancel()
         _isScanning.value = true
         _devices.value = emptyList()
         _error.value = null

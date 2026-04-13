@@ -25,7 +25,7 @@ compose.desktop {
 
         nativeDistributions {
             packageName = "BluePaper"
-            packageVersion = "0.2.0"
+            packageVersion = "0.3.0"
         }
     }
 }

@@ -61,4 +61,26 @@ class BarcodeValidatorTest {
     @Test fun ean13AcceptsCorrectCheckDigit() {
         assertTrue(BarcodeValidator.validate(BarcodeFormat.EAN_13, "5901234123457").isValid)
     }
+
+    @Test fun ean13RejectsWrongCheckDigit() {
+        val result = BarcodeValidator.validate(BarcodeFormat.EAN_13, "5901234123458")
+        assertFalse(result.isValid)
+        assertTrue(result.error!!.contains("Invalid check digit"))
+    }
+
+    @Test fun upcAAcceptsCorrectCheckDigit() {
+        assertTrue(BarcodeValidator.validate(BarcodeFormat.UPC_A, "036000291452").isValid)
+    }
+
+    @Test fun upcARejectsWrongCheckDigit() {
+        val result = BarcodeValidator.validate(BarcodeFormat.UPC_A, "036000291453")
+        assertFalse(result.isValid)
+        assertTrue(result.error!!.contains("Invalid check digit"))
+    }
+
+    @Test fun upcERejectsInvalidNumberSystem() {
+        val result = BarcodeValidator.validate(BarcodeFormat.UPC_E, "50123456")
+        assertFalse(result.isValid)
+        assertTrue(result.error!!.contains("number system must be 0 or 1"))
+    }
 }

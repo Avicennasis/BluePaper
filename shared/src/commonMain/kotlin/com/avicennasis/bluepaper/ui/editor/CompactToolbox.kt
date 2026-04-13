@@ -5,6 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.dp
 
@@ -34,12 +35,17 @@ fun CompactToolbox(
                 Text("T", style = MaterialTheme.typography.titleSmall)
             }
 
-            // Image button — uses the platform ImagePickerButton but we need
-            // to adapt it to icon-only. Since ImagePickerButton is an expect
-            // composable that renders its own button, we call it directly.
-            // It already renders as an OutlinedButton with "+ Image" text.
-            // For compact mode, we wrap it minimally.
-            ImagePickerButton(onImageLoaded = onAddImage)
+            // Image button — ImagePickerButton is an expect composable that
+            // renders its own full-width button. Constrain it to 40dp so it
+            // doesn't overflow the 48dp-wide toolbox.
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(MaterialTheme.shapes.small),
+                contentAlignment = Alignment.Center,
+            ) {
+                ImagePickerButton(onImageLoaded = onAddImage)
+            }
 
             // Barcode button
             FilledTonalIconButton(

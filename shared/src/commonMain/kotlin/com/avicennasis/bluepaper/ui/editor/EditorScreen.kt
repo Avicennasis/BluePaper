@@ -75,10 +75,14 @@ fun EditorScreen(
 
     var showPropertiesSheet by remember { mutableStateOf(false) }
     val propertiesSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var userTappedCanvas by remember { mutableStateOf(false) }
 
-    // Show the bottom sheet automatically when an element is selected in compact mode
+    // Show the bottom sheet automatically only when the user tapped the canvas
     LaunchedEffect(selectedElementId) {
-        showPropertiesSheet = selectedElementId != null
+        if (userTappedCanvas) {
+            showPropertiesSheet = selectedElementId != null
+            userTappedCanvas = false
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -141,16 +145,35 @@ fun EditorScreen(
                         .focusRequester(focusRequester)
                         .focusable()
                         .onKeyEvent { event ->
-                            if (event.type == KeyEventType.KeyDown && selectedElementId != null) {
-                                val id = selectedElementId!!
-                                val el = elements.find { it.id == id } ?: return@onKeyEvent false
-                                val step = if (event.isShiftPressed) 10f else 1f
-                                when (event.key) {
-                                    Key.DirectionLeft -> { state.moveElement(id, el.x - step, el.y); state.moveElementDone(id); true }
-                                    Key.DirectionRight -> { state.moveElement(id, el.x + step, el.y); state.moveElementDone(id); true }
-                                    Key.DirectionUp -> { state.moveElement(id, el.x, el.y - step); state.moveElementDone(id); true }
-                                    Key.DirectionDown -> { state.moveElement(id, el.x, el.y + step); state.moveElementDone(id); true }
-                                    Key.Delete, Key.Backspace -> { state.removeElement(id); true }
+                            if (event.type == KeyEventType.KeyDown) {
+                                // Global shortcuts (work regardless of selection)
+                                when {
+                                    event.isCtrlPressed && !event.isShiftPressed && event.key == Key.Z -> {
+                                        state.undo(); true
+                                    }
+                                    event.isCtrlPressed && event.isShiftPressed && event.key == Key.Z -> {
+                                        state.redo(); true
+                                    }
+                                    event.isCtrlPressed && event.key == Key.Y -> {
+                                        state.redo(); true
+                                    }
+                                    event.isCtrlPressed && event.key == Key.S -> {
+                                        saveRequested = true; true
+                                    }
+                                    // Element-specific shortcuts (require selection)
+                                    selectedElementId != null -> {
+                                        val id = selectedElementId!!
+                                        val el = elements.find { it.id == id } ?: return@onKeyEvent false
+                                        val step = if (event.isShiftPressed) 10f else 1f
+                                        when (event.key) {
+                                            Key.DirectionLeft -> { state.moveElement(id, el.x - step, el.y); state.moveElementDone(id); true }
+                                            Key.DirectionRight -> { state.moveElement(id, el.x + step, el.y); state.moveElementDone(id); true }
+                                            Key.DirectionUp -> { state.moveElement(id, el.x, el.y - step); state.moveElementDone(id); true }
+                                            Key.DirectionDown -> { state.moveElement(id, el.x, el.y + step); state.moveElementDone(id); true }
+                                            Key.Delete, Key.Backspace -> if (!event.isCtrlPressed) { state.removeElement(id); true } else false
+                                            else -> false
+                                        }
+                                    }
                                     else -> false
                                 }
                             } else false
@@ -172,7 +195,7 @@ fun EditorScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .pointerInput(elements, selectedElementId) {
+                                    .pointerInput(elements) {
                                         detectTapGestures { offset ->
                                             val (lx, ly) = screenToLabel(
                                                 offset.x, offset.y,
@@ -180,11 +203,12 @@ fun EditorScreen(
                                                 selectedLabelSize.widthPx, selectedLabelSize.heightPx,
                                             )
                                             val hit = hitTest(elements, lx, ly)
+                                            userTappedCanvas = true
                                             state.selectElement(hit?.id)
                                             focusRequester.requestFocus()
                                         }
                                     }
-                                    .pointerInput(elements, selectedElementId) {
+                                    .pointerInput(elements) {
                                         detectDragGestures(
                                             onDragEnd = {
                                                 selectedElementId?.let { state.moveElementDone(it) }
@@ -255,8 +279,10 @@ fun EditorScreen(
                             elementCount = elements.size,
                             elementIndex = elements.indexOfFirst { it.id == selectedElementId },
                             onPrint = {
-                                state.print(monochromeRows, previewWidth, previewHeight)
-                                showPrintDialog = true
+                                if (monochromeRows.isNotEmpty()) {
+                                    state.print(monochromeRows, previewWidth, previewHeight)
+                                    showPrintDialog = true
+                                }
                             },
                         )
                     }
@@ -314,18 +340,23 @@ fun EditorScreen(
                 elementCount = elements.size,
                 elementIndex = elements.indexOfFirst { it.id == selectedElementId },
                 onPrint = {
-                    state.print(monochromeRows, previewWidth, previewHeight)
-                    showPrintDialog = true
+                    if (monochromeRows.isNotEmpty()) {
+                        state.print(monochromeRows, previewWidth, previewHeight)
+                        showPrintDialog = true
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
     }
 
+    val saveContent = remember(saveRequested) {
+        if (saveRequested) LabelDesign.toJson(state.toDesign()) else ""
+    }
     FileSaveEffect(
         trigger = saveRequested,
         defaultName = "label.bpl",
-        content = if (saveRequested) LabelDesign.toJson(state.toDesign()) else "",
+        content = saveContent,
         onDone = { saveRequested = false },
     )
 

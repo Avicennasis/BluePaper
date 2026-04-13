@@ -90,11 +90,14 @@ fun BarcodeFormatPicker(
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                val data = if (selectedStandard == DataStandard.RAW_TEXT) rawData
-                else DataEncoderRegistry.encode(selectedStandard, structuredFields)
-                onAdd(selectedFormat, data, selectedStandard, structuredFields)
-            }) { Text("Add") }
+            TextButton(
+                enabled = rawData.isNotBlank() || structuredFields.values.any { it.isNotBlank() },
+                onClick = {
+                    val data = if (selectedStandard == DataStandard.RAW_TEXT) rawData
+                    else DataEncoderRegistry.encode(selectedStandard, structuredFields)
+                    onAdd(selectedFormat, data, selectedStandard, structuredFields)
+                },
+            ) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )

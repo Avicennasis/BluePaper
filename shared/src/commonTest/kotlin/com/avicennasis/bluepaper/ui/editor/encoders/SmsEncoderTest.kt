@@ -64,4 +64,18 @@ class SmsEncoderTest {
         assertEquals("+123", result["phone"])
         assertEquals("Time: 5:00pm", result["message"])
     }
+
+    @Test
+    fun decodeHandlesUppercasePrefix() {
+        val result = SmsEncoder.decode("SMSTO:+456:Hi there")
+        assertEquals("+456", result["phone"])
+        assertEquals("Hi there", result["message"])
+    }
+
+    @Test
+    fun decodeHandlesMixedCasePrefix() {
+        val result = SmsEncoder.decode("SmStO:+789:Hey")
+        assertEquals("+789", result["phone"])
+        assertEquals("Hey", result["message"])
+    }
 }

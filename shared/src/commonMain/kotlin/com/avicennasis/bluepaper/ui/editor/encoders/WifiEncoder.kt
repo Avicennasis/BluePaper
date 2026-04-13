@@ -32,7 +32,7 @@ class WifiEncoder : DataEncoder {
     )
 
     override fun encode(fields: Map<String, String>): String {
-        val encryption = fields["encryption"].orEmpty()
+        val encryption = escape(fields["encryption"].orEmpty())
         val ssid = escape(fields["ssid"].orEmpty())
         val password = escape(fields["password"].orEmpty())
         return "WIFI:T:$encryption;S:$ssid;P:$password;;"
@@ -46,7 +46,7 @@ class WifiEncoder : DataEncoder {
 
         for (part in splitFields(body)) {
             when {
-                part.startsWith("T:") -> result["encryption"] = part.removePrefix("T:")
+                part.startsWith("T:") -> result["encryption"] = unescape(part.removePrefix("T:"))
                 part.startsWith("S:") -> result["ssid"] = unescape(part.removePrefix("S:"))
                 part.startsWith("P:") -> result["password"] = unescape(part.removePrefix("P:"))
             }

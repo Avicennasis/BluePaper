@@ -38,7 +38,7 @@ class BarcodeFormatTest {
     }
 
     @Test
-    fun retailFormatsAreQrose() {
+    fun retailFormatsAreZxing() {
         val retail = BarcodeFormat.entries.filter { it.category == "Retail" }
         assertEquals(4, retail.size)
         assertTrue(retail.all { it.library == BarcodeLibrary.ZXING })

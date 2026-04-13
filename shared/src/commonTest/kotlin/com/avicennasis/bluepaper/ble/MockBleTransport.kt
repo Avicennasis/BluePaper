@@ -1,6 +1,7 @@
 package com.avicennasis.bluepaper.ble
 
 import com.avicennasis.bluepaper.printer.PrinterNotConnectedException
+import com.avicennasis.bluepaper.printer.PrinterTimeoutException
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,9 @@ class MockBleTransport : BleTransport {
             throw PrinterNotConnectedException()
         }
         sentCommands.add(packet)
+        if (responseQueue.isEmpty()) {
+            throw PrinterTimeoutException("No mock response queued")
+        }
         return responseQueue.removeFirst()
     }
 

@@ -53,19 +53,13 @@ class LabelDesignMigrationTest {
         val migrated = design.migrateToV2()
 
         assertEquals(2, migrated.version)
-        assertEquals(2, migrated.elements.size)
+        // V1 image transforms are skipped during migration (bitmap data was never serialized in v1)
+        assertEquals(1, migrated.elements.size)
 
         val textEl = migrated.elements[0]
         assertEquals("text", textEl.type)
         assertEquals("Old Label", textEl.text)
         assertEquals(18f, textEl.fontSize)
-
-        val imgEl = migrated.elements[1]
-        assertEquals("image", imgEl.type)
-        assertEquals(5f, imgEl.x)
-        assertEquals(10f, imgEl.y)
-        assertEquals(2f, imgEl.scale)
-        assertEquals(true, imgEl.flipH)
     }
 
     @Test

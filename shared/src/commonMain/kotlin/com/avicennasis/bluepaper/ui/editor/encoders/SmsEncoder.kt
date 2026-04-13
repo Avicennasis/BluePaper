@@ -20,7 +20,7 @@ object SmsEncoder : DataEncoder {
     }
 
     override fun decode(data: String): Map<String, String> {
-        val stripped = data.removePrefix("smsto:")
+        val stripped = if (data.startsWith("smsto:", ignoreCase = true)) data.substring(6) else data
         val colonIndex = stripped.indexOf(':')
         return if (colonIndex >= 0) {
             mapOf(

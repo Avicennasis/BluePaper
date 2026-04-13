@@ -9,8 +9,9 @@ import com.avicennasis.bluepaper.protocol.InfoEnum
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
 import kotlinx.coroutines.delay
 
-private const val END_PAGE_MAX_RETRIES = 200
+private const val END_PAGE_MAX_RETRIES = 20
 private const val END_PAGE_RETRY_DELAY_MS = 50L
+private const val END_PAGE_TIMEOUT_MS = 1_000L
 private const val STATUS_POLL_MAX_RETRIES = 1200
 private const val STATUS_POLL_DELAY_MS = 50L
 private const val DEFAULT_DENSITY = 3
@@ -78,8 +79,8 @@ class PrinterClient(private val transport: BleTransport) {
         return response.data.isNotEmpty() && response.data[0] != 0.toByte()
     }
 
-    suspend fun endPagePrint(): Boolean {
-        val response = transport.sendCommand(CommandBuilder.endPagePrint())
+    suspend fun endPagePrint(timeoutMs: Long = 10_000L): Boolean {
+        val response = transport.sendCommand(CommandBuilder.endPagePrint(), timeoutMs)
         return response.data.isNotEmpty() && response.data[0] != 0.toByte()
     }
 
@@ -107,13 +108,13 @@ class PrinterClient(private val transport: BleTransport) {
 
     private suspend fun waitForPagePrintEnd() {
         repeat(END_PAGE_MAX_RETRIES) {
-            if (endPagePrint()) {
+            if (endPagePrint(timeoutMs = END_PAGE_TIMEOUT_MS)) {
                 println("[PrinterClient] endPagePrint succeeded on attempt ${it + 1}")
                 return
             }
             delay(END_PAGE_RETRY_DELAY_MS)
         }
-        throw PrinterException("endPagePrint timed out after 10s")
+        throw PrinterException("endPagePrint timed out after ${END_PAGE_MAX_RETRIES} retries")
     }
 
     private suspend fun waitForPrintComplete(
@@ -143,6 +144,7 @@ class PrinterClient(private val transport: BleTransport) {
         isV2: Boolean,
         onProgress: ((Int, Int) -> Unit)? = null,
     ) {
+        var printStarted = false
         var pageStarted = false
         try {
             setLabelDensity(density)
@@ -153,6 +155,7 @@ class PrinterClient(private val transport: BleTransport) {
             } else {
                 startPrint()
             }
+            printStarted = true
             println("[PrinterClient] startPrint (v2=$isV2, quantity=$quantity)")
 
             startPagePrint()
@@ -185,7 +188,9 @@ class PrinterClient(private val transport: BleTransport) {
                     endPagePrint()
                 } catch (_: Exception) { }
             }
-            try { endPrint() } catch (_: Exception) { }
+            if (printStarted) {
+                try { endPrint() } catch (_: Exception) { }
+            }
             throw e
         }
     }

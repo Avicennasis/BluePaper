@@ -46,7 +46,7 @@ fun PropertiesPanel(
 ) {
     Column(
         modifier = modifier
-            .width(260.dp)
+            .widthIn(min = 220.dp, max = 300.dp)
             .fillMaxHeight()
             .padding(8.dp)
             .verticalScroll(rememberScrollState()),
@@ -216,9 +216,7 @@ private fun NumericField(
     }
 
     LaunchedEffect(value) {
-        if (!isFocused) {
-            textValue = if (value == value.toInt().toFloat()) value.toInt().toString() else value.toString()
-        }
+        textValue = if (value == value.toInt().toFloat()) value.toInt().toString() else value.toString()
     }
 
     OutlinedTextField(

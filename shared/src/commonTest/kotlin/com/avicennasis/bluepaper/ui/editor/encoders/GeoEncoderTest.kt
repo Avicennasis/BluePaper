@@ -59,4 +59,26 @@ class GeoEncoderTest {
         assertEquals("-33.8688", result["latitude"])
         assertEquals("151.2093", result["longitude"])
     }
+
+    @Test
+    fun decodeDiscardsAltitude() {
+        val result = GeoEncoder.decode("geo:48.198634,16.371648,183")
+        assertEquals("48.198634", result["latitude"])
+        assertEquals("16.371648", result["longitude"])
+    }
+
+    @Test
+    fun encodeValidCoordinates() {
+        val result = GeoEncoder.encode(mapOf("latitude" to "48.8566", "longitude" to "2.3522"))
+        assertEquals("geo:48.8566,2.3522", result)
+    }
+
+    @Test
+    fun roundTripPreservesLatLon() {
+        val original = mapOf("latitude" to "-22.9068", "longitude" to "-43.1729")
+        val encoded = GeoEncoder.encode(original)
+        val decoded = GeoEncoder.decode(encoded)
+        assertEquals(original["latitude"], decoded["latitude"])
+        assertEquals(original["longitude"], decoded["longitude"])
+    }
 }

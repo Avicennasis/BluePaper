@@ -11,10 +11,10 @@ object BarcodeValidator {
     fun validate(format: BarcodeFormat, data: String): ValidationResult {
         if (data.isEmpty()) return ValidationResult(false, error = "Data cannot be empty")
         return when (format) {
-            BarcodeFormat.EAN_13 -> validateNumericWithLength(data, "EAN-13", 13)
-            BarcodeFormat.EAN_8 -> validateNumericWithLength(data, "EAN-8", 8)
-            BarcodeFormat.UPC_A -> validateNumericWithLength(data, "UPC-A", 12)
-            BarcodeFormat.UPC_E -> validateNumericWithLength(data, "UPC-E", 8)
+            BarcodeFormat.EAN_13 -> validateWithCheckDigit(data, "EAN-13", 13)
+            BarcodeFormat.EAN_8 -> validateWithCheckDigit(data, "EAN-8", 8)
+            BarcodeFormat.UPC_A -> validateWithCheckDigit(data, "UPC-A", 12)
+            BarcodeFormat.UPC_E -> validateUpcE(data)
             BarcodeFormat.ITF -> validateItf(data)
             BarcodeFormat.RSS_14 -> validateNumericWithLength(data, "RSS-14", 14)
             BarcodeFormat.CODE_39 -> validateCode39(data)
@@ -67,11 +67,12 @@ object BarcodeValidator {
 
     /**
      * Expands a 7-digit UPC-E (number system + 6 middle digits) to an 11-digit UPC-A payload
-     * (without check digit). The expansion is based on the last of the 6 middle digits (d6).
+     * (without check digit). Returns null if the number system digit is not 0 or 1.
      */
-    fun expandUpcE(digits: String): String {
+    fun expandUpcE(digits: String): String? {
         require(digits.length == 7) { "expandUpcE requires exactly 7 digits" }
         val d0 = digits[0] // number system digit
+        if (d0 != '0' && d0 != '1') return null
         val d1 = digits[1]
         val d2 = digits[2]
         val d3 = digits[3]
@@ -89,9 +90,13 @@ object BarcodeValidator {
     private fun fixUpcE(data: String): String {
         val digits = data.filter { it.isDigit() }
         val padded = digits.padStart(7, '0').take(7)
-        val upcAPayload = expandUpcE(padded)
+        // Reject invalid number system digits (must be 0 or 1)
+        val d0 = padded[0]
+        val safePadded = if (d0 != '0' && d0 != '1') "0${padded.drop(1)}" else padded
+        val upcAPayload = expandUpcE(safePadded)
+            ?: error("expandUpcE returned null for padded=$safePadded") // should not happen after d0 fix
         val checkDigit = computeCheckDigit(upcAPayload)
-        return padded + checkDigit
+        return safePadded + checkDigit
     }
 
     private fun fixRss14(data: String): String {
@@ -117,6 +122,39 @@ object BarcodeValidator {
             hasStop -> "A" + body
             else -> "A${body}A"
         }
+    }
+
+    private fun validateWithCheckDigit(
+        data: String,
+        formatName: String,
+        expectedLength: Int,
+    ): ValidationResult {
+        val lengthCheck = validateNumericWithLength(data, formatName, expectedLength)
+        if (!lengthCheck.isValid) return lengthCheck
+        val expected = computeCheckDigit(data.dropLast(1))
+        val actual = data.last() - '0'
+        if (expected != actual) {
+            return ValidationResult(false, error = "Invalid check digit: expected $expected, got ${data.last()}")
+        }
+        return ValidationResult(true)
+    }
+
+    private fun validateUpcE(data: String): ValidationResult {
+        val lengthCheck = validateNumericWithLength(data, "UPC-E", 8)
+        if (!lengthCheck.isValid) return lengthCheck
+        val d0 = data[0]
+        if (d0 != '0' && d0 != '1') {
+            return ValidationResult(false, error = "UPC-E number system must be 0 or 1, got $d0")
+        }
+        val payload = data.substring(0, 7) // number system + 6 middle digits
+        val upcAPayload = expandUpcE(payload)
+            ?: return ValidationResult(false, error = "Invalid UPC-E encoding")
+        val expected = computeCheckDigit(upcAPayload)
+        val actual = data[7] - '0'
+        if (expected != actual) {
+            return ValidationResult(false, error = "Invalid check digit: expected $expected, got ${data[7]}")
+        }
+        return ValidationResult(true)
     }
 
     private fun validateNumeric(data: String, formatName: String): ValidationResult =

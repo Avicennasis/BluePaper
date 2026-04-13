@@ -12,12 +12,14 @@ import com.juul.kable.State
 import com.juul.kable.WriteType
 import com.juul.kable.characteristicOf
 import com.juul.kable.peripheral
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.ExperimentalUuidApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -26,36 +28,52 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 
 @OptIn(ExperimentalUuidApi::class)
-class KableBleTransport : BleTransport {
+class KableBleTransport : BleTransport, AdvertisementCache {
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     override val connectionState: StateFlow<ConnectionState> = _connectionState
 
     private var peripheral: Peripheral? = null
     private var notifyCharacteristic: Characteristic? = null
-    private val responseChannel = Channel<ByteArray>(Channel.UNLIMITED)
+    private var responseChannel = Channel<ByteArray>(Channel.UNLIMITED)
     private val commandMutex = Mutex()
     private var scope: CoroutineScope? = null
 
     /** Cache of advertisements seen during scanning, keyed by device address. */
-    private val advertisementCache = mutableMapOf<String, Advertisement>()
+    private val advertisementMap = ConcurrentHashMap<String, Advertisement>()
+    private companion object {
+        const val MAX_CACHE_SIZE = 50
+    }
+
+    override fun cache(deviceId: String, advertisement: Any) {
+        require(advertisement is Advertisement) {
+            "KableBleTransport expects a Kable Advertisement, got ${advertisement::class}"
+        }
+        advertisementMap[deviceId] = advertisement
+        // Evict oldest entries if cache exceeds cap
+        while (advertisementMap.size > MAX_CACHE_SIZE) {
+            val oldest = advertisementMap.keys().asIterator().next()
+            advertisementMap.remove(oldest)
+        }
+        println("[KableBleTransport] Cached advertisement for $deviceId")
+    }
+
+    override fun get(deviceId: String): Any? = advertisementMap[deviceId]
 
     /**
-     * Store an advertisement so [connect] can look it up later by address.
-     * Called from the scanner layer when advertisements are observed.
+     * Clear the advertisement cache. Call when scanning stops to free memory.
      */
-    fun cacheAdvertisement(advertisement: Advertisement) {
-        val address = advertisement.identifier.toString()
-        advertisementCache[address] = advertisement
-        println("[KableBleTransport] Cached advertisement for $address")
+    fun clearCache() {
+        advertisementMap.clear()
+        println("[KableBleTransport] Advertisement cache cleared")
     }
 
     override suspend fun connect(device: ScannedDevice) {
         println("[KableBleTransport] connect() called for ${device.name} (${device.address})")
-        val advertisement = advertisementCache[device.address]
+        val advertisement = advertisementMap[device.address] as? Advertisement
             ?: throw PrinterException(
                 "No cached advertisement for address ${device.address}. " +
-                "Ensure the scanner is using this transport's cacheAdvertisement() method."
+                "Ensure the scanner is using this transport's AdvertisementCache."
             )
 
         val kablePeripheral = Peripheral(advertisement)
@@ -65,8 +83,8 @@ class KableBleTransport : BleTransport {
     suspend fun connectWithPeripheral(kablePeripheral: Peripheral) {
         println("[KableBleTransport] connectWithPeripheral() starting")
         _connectionState.value = ConnectionState.CONNECTING
-        // Clear any stale notifications from previous session
-        while (responseChannel.tryReceive().isSuccess) { }
+        // Recreate channel to ensure clean state (old one may have been closed by disconnect)
+        responseChannel = Channel(Channel.UNLIMITED)
 
         try {
             peripheral = kablePeripheral
@@ -121,7 +139,7 @@ class KableBleTransport : BleTransport {
                 }
             }
 
-            _connectionState.value = ConnectionState.CONNECTED
+            // State is managed by the kablePeripheral.state monitoring coroutine above
             println("[KableBleTransport] Connection established successfully")
         } catch (e: PrinterException) {
             _connectionState.value = ConnectionState.DISCONNECTED
@@ -142,19 +160,19 @@ class KableBleTransport : BleTransport {
         } catch (_: Exception) { }
         peripheral = null
         notifyCharacteristic = null
-        // Drain stale notifications from the channel
-        while (responseChannel.tryReceive().isSuccess) { }
+        // Close the channel so any suspended receive() throws immediately
+        responseChannel.close()
         _connectionState.value = ConnectionState.DISCONNECTED
         println("[KableBleTransport] Disconnected")
     }
 
     override suspend fun sendCommand(packet: NiimbotPacket, timeoutMs: Long): NiimbotPacket {
-        val p = peripheral ?: throw PrinterNotConnectedException()
-        val char = notifyCharacteristic ?: throw PrinterNotConnectedException()
-
         println("[KableBleTransport] sendCommand: type=0x${packet.type.toString(16)}, ${packet.toBytes().size} bytes, timeout=${timeoutMs}ms")
 
         return commandMutex.withLock {
+            val p = peripheral ?: throw PrinterNotConnectedException()
+            val char = notifyCharacteristic ?: throw PrinterNotConnectedException()
+
             while (responseChannel.tryReceive().isSuccess) { }
 
             p.write(char, packet.toBytes(), WriteType.WithoutResponse)
@@ -165,6 +183,8 @@ class KableBleTransport : BleTransport {
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 throw PrinterTimeoutException("No response within ${timeoutMs}ms")
+            } catch (e: ClosedReceiveChannelException) {
+                throw PrinterNotConnectedException()
             }
 
             NiimbotPacket.fromBytes(responseData)
@@ -172,10 +192,11 @@ class KableBleTransport : BleTransport {
     }
 
     override suspend fun writeRaw(packet: NiimbotPacket) {
-        val p = peripheral ?: throw PrinterNotConnectedException()
-        val char = notifyCharacteristic ?: throw PrinterNotConnectedException()
-
         println("[KableBleTransport] writeRaw: ${packet.toBytes().size} bytes")
-        p.write(char, packet.toBytes(), WriteType.WithoutResponse)
+        commandMutex.withLock {
+            val p = peripheral ?: throw PrinterNotConnectedException()
+            val char = notifyCharacteristic ?: throw PrinterNotConnectedException()
+            p.write(char, packet.toBytes(), WriteType.WithoutResponse)
+        }
     }
 }

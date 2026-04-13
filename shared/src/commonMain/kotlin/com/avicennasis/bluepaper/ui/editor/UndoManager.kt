@@ -26,6 +26,8 @@ class UndoManager(private val maxHistory: Int = 50) {
         return redoStack.removeLast()
     }
 
+    // ImageBitmap is shared by reference across snapshots (immutable in Compose).
+    // Consider reducing maxHistory when many image elements are present.
     private fun deepCopy(elements: List<LabelElement>): List<LabelElement> =
         elements.map { element ->
             when (element) {

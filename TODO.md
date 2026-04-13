@@ -101,6 +101,47 @@
 - [x] Build: version catalog for androidx deps, jvmToolchain(17) for desktopApp
 - [x] 314 tests passing (up from 272)
 
+## v0.8.0 — Deep Code Review + Quality Sweep (Complete)
+- [x] HIBC encoder: mod-43 check character, zero-padding (not spaces), uppercase enforcement
+- [x] GS1-128/DataMatrix: FNC1 separators replace parenthesis notation, new segment-based parser
+- [x] BarcodeValidator: check digit validation for EAN-13/8/UPC-A/E, UPC-E number system check
+- [x] VCard encoder: RFC 6350 escaping (\, ;, comma, newlines)
+- [x] MeCard encoder: semicolon escaping
+- [x] WiFi encoder: escape encryption field
+- [x] SMS encoder: case-insensitive decode
+- [x] GeoEncoder: altitude-safe decode (limit=3), labeled coordinate ranges
+- [x] BarcodeRenderer: EC hints for Aztec (percentage) and PDF-417 (level 0-8)
+- [x] BarcodeFormatPicker: empty-data guard on Add button
+- [x] KableBleTransport: race condition fix (mutex), disconnect hang fix (close channel), cache eviction + ConcurrentHashMap, remove competing connectionState writer
+- [x] KableBleScanner: AdvertisementCache interface decoupling
+- [x] NiimbotPacket: reject trailing bytes
+- [x] PrinterClient: 20-retry/1s timeout budget, printStarted flag gates cleanup
+- [x] CommandBuilder: imageRow payload size validation
+- [x] EditorState: template element ID collision fix, interaction snapshot cleanup, undo snapshot for label size change, nextId collision after loadDesign, IO dispatch for saveAsTemplate/deleteTemplate
+- [x] EditorScreen: remember-wrapped serialization, pointerInput key fix, bottom sheet guard, print button guard, Ctrl+Z/S/Y shortcuts
+- [x] PropertiesPanel: NumericField sync fix, widthIn instead of fixed width
+- [x] TopToolbar: horizontal scroll for overflow
+- [x] CompactToolbox: clipped ImagePickerButton
+- [x] ElementList: delete button accessibility
+- [x] LabelCanvas: scale-aware selection box and hit-test
+- [x] CanvasInteraction: division-by-zero guard
+- [x] MonochromePreview: pre-computed runs (off render thread)
+- [x] BlePermissionHandler: re-check on resume from Settings
+- [x] ScannerState: cancel stale scanJob before starting new
+- [x] LabelDesign: V1 migration skips unrecoverable image elements
+- [x] FontRegistry: lazy {} delegate (thread-safe on all platforms)
+- [x] DeviceRegistry: underscore removal in scanPrefixes
+- [x] MonochromeEncoder: maxWidth clamp for positive offset
+- [x] PrintDialog: cancel button while printing
+- [x] FileSaveLoad desktop: Swing EDT compliance, onDone cancel fix
+- [x] FileSaveLoad iOS: LaunchedEffect for side effects
+- [x] FileSaveLoad Android: MIME type octet-stream, error logging
+- [x] BluePaperApp: async ThemePreferences load
+- [x] MockBleTransport: PrinterTimeoutException on empty queue
+- [x] BarcodeFormatTest: renamed misleading test
+- [x] HeartbeatResponseTest: 13-byte and 19-byte variant coverage
+- [x] 348 tests passing (up from 314)
+
 ## Features (Backlog)
 - [ ] Resize handles interactive (hitTestHandle is defined, needs pointer input wiring)
 

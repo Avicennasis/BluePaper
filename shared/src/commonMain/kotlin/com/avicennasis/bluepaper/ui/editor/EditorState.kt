@@ -8,6 +8,7 @@ import com.avicennasis.bluepaper.config.LabelSize
 import com.avicennasis.bluepaper.printer.PrinterClient
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -141,6 +142,8 @@ class EditorState(
         saveUndoSnapshot()
         _elements.value = _elements.value.filter { it.id != id }
         if (_selectedElementId.value == id) _selectedElementId.value = null
+        // Fix: clean up stale interaction snapshot keys for the removed element
+        interactionSnapshotsInProgress.removeAll { it.contains(id) }
     }
 
     private fun updateElement(id: String, transform: (LabelElement) -> LabelElement) {
@@ -405,7 +408,17 @@ class EditorState(
             )
         }
         val template = LabelTemplate(name, description, templateElements)
-        TemplateStorage.save(template)
+        // Fix: move synchronous I/O off the main thread
+        scope.launch(Dispatchers.IO) {
+            TemplateStorage.save(template)
+        }
+    }
+
+    // Fix: delete template on IO dispatcher so it survives dialog dismissal
+    fun deleteTemplate(id: String) {
+        scope.launch(Dispatchers.IO) {
+            TemplateStorage.delete(id)
+        }
     }
 
     // --- Printer config ---
@@ -422,6 +435,8 @@ class EditorState(
 
     fun selectLabelSize(size: LabelSize) {
         _selectedLabelSize.value = size
+        // Save undo before clamping so the user can revert the label size change
+        saveUndoSnapshot()
         // Re-clamp all elements to the new label dimensions
         _elements.value = clampAllToLabel(_elements.value, size.widthPx, size.heightPx)
     }
@@ -432,7 +447,15 @@ class EditorState(
     fun applyTemplate(template: LabelTemplate) {
         saveUndoSnapshot()
         val labelSize = _selectedLabelSize.value
-        _elements.value = TemplateManager.applyTemplate(template, labelSize.widthPx, labelSize.heightPx)
+        val templateElements = TemplateManager.applyTemplate(template, labelSize.widthPx, labelSize.heightPx)
+        // Fix: remap template element IDs through newId() to avoid collisions on re-apply
+        _elements.value = templateElements.map { el ->
+            when (el) {
+                is LabelElement.TextElement -> el.copy(id = newId("text"))
+                is LabelElement.ImageElement -> el.copy(id = newId("img"))
+                is LabelElement.BarcodeElement -> el.copy(id = newId("barcode"))
+            }
+        }
         _selectedElementId.value = null
     }
 
@@ -457,6 +480,12 @@ class EditorState(
         _density.value = migrated.density
         _quantity.value = migrated.quantity
         _elements.value = migrated.elements.map { it.toLabelElement() }
+        // Fix: advance nextId past any IDs loaded from the design to prevent collisions
+        val maxSuffix = _elements.value.mapNotNull {
+            it.id.substringAfterLast('_').toIntOrNull()
+        }.maxOrNull() ?: -1
+        if (maxSuffix >= nextId) nextId = maxSuffix + 1
+        // Note: selection state is not captured in undo snapshots — undoing a load will not restore previous selection
         _selectedElementId.value = null
     }
 

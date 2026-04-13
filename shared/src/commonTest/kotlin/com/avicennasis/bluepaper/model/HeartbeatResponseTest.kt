@@ -28,22 +28,62 @@ class HeartbeatResponseTest {
 
     @Test
     fun parse13ByteResponse() {
-        val data = ByteArray(13).also { it[9] = 1; it[10] = 75.toByte(); it[11] = 2; it[12] = 3 }
+        // 13-byte variant reads: closingState=b(9), powerLevel=b(10), paperState=b(11), rfidReadState=b(12)
+        // Set distinct values at every byte to prove exact offsets are used
+        val data = ByteArray(13) { (it + 10).toByte() }
+        data[9] = 7
+        data[10] = 88.toByte()
+        data[11] = 4
+        data[12] = 5
         val hb = HeartbeatResponse.fromData(data)
-        assertEquals(1, hb.closingState)
-        assertEquals(75, hb.powerLevel)
-        assertEquals(2, hb.paperState)
-        assertEquals(3, hb.rfidReadState)
+        assertEquals(7, hb.closingState)
+        assertEquals(88, hb.powerLevel)
+        assertEquals(4, hb.paperState)
+        assertEquals(5, hb.rfidReadState)
+    }
+
+    @Test
+    fun parse13ByteClosingStateOffsetIsNot8() {
+        // Verify 13-byte uses index 9 (not 8) for closingState
+        val data = ByteArray(13)
+        data[8] = 99.toByte()  // would be closingState in 9-byte/10-byte variants
+        data[9] = 42           // actual closingState for 13-byte
+        data[10] = 0
+        data[11] = 0
+        data[12] = 0
+        val hb = HeartbeatResponse.fromData(data)
+        assertEquals(42, hb.closingState)
     }
 
     @Test
     fun parse19ByteResponse() {
-        val data = ByteArray(19).also { it[15] = 0; it[16] = 100.toByte(); it[17] = 1; it[18] = 0 }
+        // 19-byte variant reads: closingState=b(15), powerLevel=b(16), paperState=b(17), rfidReadState=b(18)
+        // Set distinct values at every byte to prove exact offsets are used
+        val data = ByteArray(19) { (it + 20).toByte() }
+        data[15] = 3
+        data[16] = 200.toByte()
+        data[17] = 1
+        data[18] = 2
         val hb = HeartbeatResponse.fromData(data)
-        assertEquals(0, hb.closingState)
-        assertEquals(100, hb.powerLevel)
+        assertEquals(3, hb.closingState)
+        assertEquals(200, hb.powerLevel)
         assertEquals(1, hb.paperState)
-        assertEquals(0, hb.rfidReadState)
+        assertEquals(2, hb.rfidReadState)
+    }
+
+    @Test
+    fun parse19ByteAllFieldsPopulated() {
+        // Verify all four fields are non-null for 19-byte variant
+        val data = ByteArray(19)
+        data[15] = 1
+        data[16] = 50
+        data[17] = 2
+        data[18] = 3
+        val hb = HeartbeatResponse.fromData(data)
+        assertNotNull(hb.closingState)
+        assertNotNull(hb.powerLevel)
+        assertNotNull(hb.paperState)
+        assertNotNull(hb.rfidReadState)
     }
 
     @Test

@@ -8,6 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -58,8 +60,9 @@ fun ElementList(
                     TextButton(
                         onClick = { onDelete(element.id) },
                         contentPadding = PaddingValues(4.dp),
+                        modifier = Modifier.semantics { contentDescription = "Delete element" },
                     ) {
-                        Text("X", style = MaterialTheme.typography.labelSmall)
+                        Text("\u2715", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }

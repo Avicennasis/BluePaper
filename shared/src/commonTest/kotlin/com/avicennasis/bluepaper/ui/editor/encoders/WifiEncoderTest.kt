@@ -78,4 +78,14 @@ class WifiEncoderTest {
         assertEquals(original["ssid"], decoded["ssid"])
         assertEquals(original["password"], decoded["password"])
     }
+
+    @Test
+    fun encryptionWithSemicolonsRoundTrips() {
+        val original = mapOf("ssid" to "TestNet", "password" to "pass", "encryption" to "WPA;2")
+        val encoded = encoder.encode(original)
+        val decoded = encoder.decode(encoded)
+        assertEquals("WPA;2", decoded["encryption"])
+        assertEquals("TestNet", decoded["ssid"])
+        assertEquals("pass", decoded["password"])
+    }
 }

@@ -84,12 +84,12 @@ class NiimbotPacketTest {
     }
 
     @Test
-    fun fromBytesWithTrailingBytesAccepted() {
+    fun fromBytesRejectsTrailingBytes() {
         val wire = NiimbotPacket(type = 0x40, data = byteArrayOf(0x01)).toBytes()
         val padded = wire + byteArrayOf(0xFF.toByte(), 0x00)
-        val decoded = NiimbotPacket.fromBytes(padded)
-        assertEquals(0x40, decoded.type)
-        assertContentEquals(byteArrayOf(0x01), decoded.data)
+        assertFailsWith<IllegalArgumentException> {
+            NiimbotPacket.fromBytes(padded)
+        }
     }
 
     @Test

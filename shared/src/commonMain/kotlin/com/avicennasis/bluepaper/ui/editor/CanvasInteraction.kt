@@ -8,8 +8,9 @@ import kotlin.math.roundToInt
 // To fix: transform click coordinates by inverse rotation around element center.
 fun hitTest(elements: List<LabelElement>, labelX: Float, labelY: Float): LabelElement? {
     for (element in elements.asReversed()) {
-        if (labelX >= element.x && labelX <= element.x + element.width &&
-            labelY >= element.y && labelY <= element.y + element.height
+        val elScale = if (element is LabelElement.ImageElement) element.scale else 1f
+        if (labelX >= element.x && labelX <= element.x + element.width * elScale &&
+            labelY >= element.y && labelY <= element.y + element.height * elScale
         ) {
             return element
         }
@@ -30,6 +31,9 @@ fun screenToLabel(
     labelWidth: Int,
     labelHeight: Int,
 ): Pair<Float, Float> {
+    if (labelWidth <= 0 || labelHeight <= 0 || canvasWidth <= 0f || canvasHeight <= 0f) {
+        return Pair(0f, 0f)
+    }
     val scaleFactor = min(canvasWidth / labelWidth, canvasHeight / labelHeight)
     return Pair(screenX / scaleFactor, screenY / scaleFactor)
 }
@@ -42,6 +46,9 @@ fun screenDeltaToLabel(
     labelWidth: Int,
     labelHeight: Int,
 ): Pair<Float, Float> {
+    if (labelWidth <= 0 || labelHeight <= 0 || canvasWidth <= 0f || canvasHeight <= 0f) {
+        return Pair(0f, 0f)
+    }
     val scaleFactor = min(canvasWidth / labelWidth, canvasHeight / labelHeight)
     return Pair(deltaX / scaleFactor, deltaY / scaleFactor)
 }

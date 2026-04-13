@@ -50,5 +50,12 @@ fun PrintDialog(
                 }
             }
         },
+        dismissButton = {
+            if (progress.isPrinting) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        },
     )
 }

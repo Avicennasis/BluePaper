@@ -111,11 +111,23 @@ class MeCardEncoderTest {
 
     @Test
     fun roundTripNoteWithoutTrailingSemicolon() {
-        // MeCard format uses ';' as field separator with no escaping,
-        // so ';' in field values cannot roundtrip. Test a clean value.
         val original = mapOf("name" to "Alice", "phone" to "5551234567", "note" to "See rules")
         val encoded = encoder.encode(original)
         val decoded = encoder.decode(encoded)
         assertEquals("See rules", decoded["note"])
+    }
+
+    @Test
+    fun roundTripAddressWithSemicolon() {
+        val original = mapOf(
+            "name" to "Bob",
+            "phone" to "5550001111",
+            "address" to "123 Main St; Apt 4",
+        )
+        val encoded = encoder.encode(original)
+        val decoded = encoder.decode(encoded)
+        assertEquals("123 Main St; Apt 4", decoded["address"])
+        assertEquals("Bob", decoded["name"])
+        assertEquals("5550001111", decoded["phone"])
     }
 }

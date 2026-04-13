@@ -44,25 +44,9 @@ data class LabelDesign(
             )
         }
 
-        imageTransform?.let { transform ->
-            val hasImage = transform.offsetX != 0f || transform.offsetY != 0f ||
-                transform.scale != 1f || transform.rotation != 0f ||
-                transform.flipH || transform.flipV
-            if (hasImage) {
-                migrated.add(
-                    SerializableLabelElement(
-                        type = "image",
-                        id = "migrated_image",
-                        x = transform.offsetX,
-                        y = transform.offsetY,
-                        rotation = transform.rotation,
-                        scale = transform.scale,
-                        flipH = transform.flipH,
-                        flipV = transform.flipV,
-                    ),
-                )
-            }
-        }
+        // V1 image transforms are intentionally NOT migrated: the original bitmap data
+        // was never serialized in V1 files, so creating an ImageElement would produce a
+        // zero-size element with no imageData. The transform metadata alone is not useful.
 
         return copy(version = 2, elements = migrated, text = null, fontSize = null, imageTransform = null)
     }

@@ -1,6 +1,7 @@
 package com.avicennasis.bluepaper.ui.editor
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 actual fun FileSaveEffect(
@@ -10,7 +11,9 @@ actual fun FileSaveEffect(
     onDone: () -> Unit,
 ) {
     // TODO: iOS document picker
-    if (trigger) onDone()
+    LaunchedEffect(trigger) {
+        if (trigger) onDone()
+    }
 }
 
 @Composable
@@ -20,5 +23,7 @@ actual fun FileLoadEffect(
     onDone: () -> Unit,
 ) {
     // TODO: iOS document picker
-    if (trigger) onDone()
+    LaunchedEffect(trigger) {
+        if (trigger) onDone()
+    }
 }

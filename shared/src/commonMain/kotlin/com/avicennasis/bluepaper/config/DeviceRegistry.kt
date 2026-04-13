@@ -58,7 +58,8 @@ object DeviceRegistry {
 
     fun models(): List<String> = configs.keys.toList()
 
-    /** Returns BLE advertised-name prefixes derived from registered models, for scan filtering. */
+    /** Returns BLE advertised-name prefixes derived from registered models, for scan filtering.
+     *  Underscores are stripped because real devices advertise without them (e.g. "D11H" not "D11_H"). */
     fun scanPrefixes(): List<String> =
-        configs.keys.map { it.uppercase() }.distinct()
+        configs.keys.map { it.uppercase().replace("_", "") }.distinct()
 }

@@ -182,20 +182,36 @@ class PrinterClientPrintTest {
     }
 
     @Test
-    fun printCallsEndPrintOnError() = runTest {
+    fun printDoesNotCallEndPrintWhenStartPrintFails() = runTest {
         val (transport, client) = connectedClient()
         transport.enqueueResponse(successResponse(RequestCode.SET_LABEL_DENSITY))
         transport.enqueueResponse(successResponse(RequestCode.SET_LABEL_TYPE))
         // startPrint will throw — no response enqueued
-        // But endPrint cleanup needs a response
-        transport.enqueueResponse(successResponse(RequestCode.END_PRINT))
 
-        assertFailsWith<NoSuchElementException> {
+        assertFailsWith<PrinterTimeoutException> {
             client.print(listOf(byteArrayOf(0x00)), 8, 1, 3, 1, isV2 = false)
         }
 
-        val lastCmd = transport.sentCommands.last()
-        assertEquals(RequestCode.END_PRINT.code, lastCmd.type)
+        val hasEndPrint = transport.sentCommands.any { it.type == RequestCode.END_PRINT.code }
+        assertEquals(false, hasEndPrint, "endPrint should not be sent when startPrint failed")
+    }
+
+    @Test
+    fun printCallsEndPrintWhenLaterStepFails() = runTest {
+        val (transport, client) = connectedClient()
+        transport.enqueueResponse(successResponse(RequestCode.SET_LABEL_DENSITY))
+        transport.enqueueResponse(successResponse(RequestCode.SET_LABEL_TYPE))
+        transport.enqueueResponse(successResponse(RequestCode.START_PRINT))
+        // startPagePrint will throw — no response enqueued
+        // But endPrint cleanup needs a response
+        transport.enqueueResponse(successResponse(RequestCode.END_PRINT))
+
+        assertFailsWith<PrinterTimeoutException> {
+            client.print(listOf(byteArrayOf(0x00)), 8, 1, 3, 1, isV2 = false)
+        }
+
+        val hasEndPrint = transport.sentCommands.any { it.type == RequestCode.END_PRINT.code }
+        assertEquals(true, hasEndPrint, "endPrint should be sent when startPrint succeeded but a later step failed")
     }
 
     @Test

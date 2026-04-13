@@ -204,8 +204,9 @@ private fun DrawScope.drawImageElement(
 private fun DrawScope.drawSelectionBox(element: LabelElement, scaleFactor: Float) {
     val x = element.x * scaleFactor
     val y = element.y * scaleFactor
-    val w = element.width * scaleFactor
-    val h = element.height * scaleFactor
+    val elScale = if (element is LabelElement.ImageElement) element.scale else 1f
+    val w = element.width * scaleFactor * elScale
+    val h = element.height * scaleFactor * elScale
 
     drawRect(
         color = Color(0xFF42A5F5),
@@ -218,8 +219,9 @@ private fun DrawScope.drawSelectionBox(element: LabelElement, scaleFactor: Float
 private fun DrawScope.drawResizeHandles(element: LabelElement, scaleFactor: Float) {
     val x = element.x * scaleFactor
     val y = element.y * scaleFactor
-    val w = element.width * scaleFactor
-    val h = element.height * scaleFactor
+    val elScale = if (element is LabelElement.ImageElement) element.scale else 1f
+    val w = element.width * scaleFactor * elScale
+    val h = element.height * scaleFactor * elScale
     val hs = HANDLE_SIZE_DP * 2
 
     val handlePositions = listOf(
