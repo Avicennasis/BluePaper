@@ -19,6 +19,7 @@ fun TopToolbar(
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     onTemplates: () -> Unit,
+    onSaveTemplate: () -> Unit,
     onThemeToggle: () -> Unit,
     onGridToggle: () -> Unit,
     onDisconnect: () -> Unit,
@@ -40,6 +41,7 @@ fun TopToolbar(
             TextButton(onClick = onRedo, enabled = canRedo) { Text("Redo") }
             Spacer(Modifier.width(8.dp))
             TextButton(onClick = onTemplates) { Text("Templates") }
+            TextButton(onClick = onSaveTemplate) { Text("Save Tmpl") }
             Spacer(Modifier.width(8.dp))
             TextButton(onClick = onGridToggle) {
                 Text(if (showGrid) "Grid On" else "Grid Off")

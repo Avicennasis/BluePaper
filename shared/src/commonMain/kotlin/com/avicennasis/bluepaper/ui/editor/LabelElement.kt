@@ -21,6 +21,8 @@ sealed class LabelElement {
         val text: String = "Hello",
         val fontSize: Float = 24f,
         val fontFamily: String = "default",
+        val fontWeight: Int = 400,
+        val fontStyle: String = "normal",
     ) : LabelElement()
 
     data class ImageElement(
@@ -66,6 +68,9 @@ data class SerializableLabelElement(
     val scale: Float? = null,
     val flipH: Boolean? = null,
     val flipV: Boolean? = null,
+    val fontWeight: Int? = null,
+    val fontStyle: String? = null,
+    val imageData: String? = null,
     val barcodeData: String? = null,
     val barcodeFormat: String? = null,
     val errorCorrection: String? = null,
@@ -77,10 +82,13 @@ fun LabelElement.toSerializable(): SerializableLabelElement = when (this) {
     is LabelElement.TextElement -> SerializableLabelElement(
         type = "text", id = id, x = x, y = y, width = width, height = height,
         rotation = rotation, text = text, fontSize = fontSize, fontFamily = fontFamily,
+        fontWeight = fontWeight.takeIf { it != 400 },
+        fontStyle = fontStyle.takeIf { it != "normal" },
     )
     is LabelElement.ImageElement -> SerializableLabelElement(
         type = "image", id = id, x = x, y = y, width = width, height = height,
         rotation = rotation, scale = scale, flipH = flipH, flipV = flipV,
+        imageData = bitmap?.let { ImageEncoder.encode(it, 1024) },
     )
     is LabelElement.BarcodeElement -> SerializableLabelElement(
         type = "barcode", id = id, x = x, y = y, width = width, height = height,
@@ -94,10 +102,12 @@ fun SerializableLabelElement.toLabelElement(): LabelElement = when (type) {
     "text" -> LabelElement.TextElement(
         id = id, x = x, y = y, width = width, height = height, rotation = rotation,
         text = text ?: "Hello", fontSize = fontSize ?: 24f, fontFamily = fontFamily ?: "default",
+        fontWeight = fontWeight ?: 400, fontStyle = fontStyle ?: "normal",
     )
     "image" -> LabelElement.ImageElement(
         id = id, x = x, y = y, width = width, height = height, rotation = rotation,
         scale = scale ?: 1f, flipH = flipH ?: false, flipV = flipV ?: false,
+        bitmap = imageData?.let { ImageEncoder.decode(it) },
     )
     "barcode" -> LabelElement.BarcodeElement(
         id = id, x = x, y = y, width = width, height = height, rotation = rotation,

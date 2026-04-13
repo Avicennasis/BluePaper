@@ -32,6 +32,14 @@ fun PropertiesPanel(
     onBarcodeDataStandardChange: (String, DataStandard) -> Unit = { _, _ -> },
     onBarcodeStructuredDataChange: (String, Map<String, String>) -> Unit = { _, _ -> },
     onBarcodeStructuredDataChangeDone: (String) -> Unit = {},
+    onToggleBold: (String) -> Unit = {},
+    onToggleItalic: (String) -> Unit = {},
+    onBringToFront: (String) -> Unit = {},
+    onSendToBack: (String) -> Unit = {},
+    onMoveUp: (String) -> Unit = {},
+    onMoveDown: (String) -> Unit = {},
+    elementCount: Int = 0,
+    elementIndex: Int = -1,
     onPrint: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -70,6 +78,16 @@ fun PropertiesPanel(
                 onRotationChange(selectedElement.id, deg)
             }
 
+            // Z-ordering
+            Spacer(Modifier.height(8.dp))
+            Text("Layer Order", style = MaterialTheme.typography.labelMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedButton(onClick = { onSendToBack(selectedElement.id) }, enabled = elementIndex > 0) { Text("⤓") }
+                OutlinedButton(onClick = { onMoveDown(selectedElement.id) }, enabled = elementIndex > 0) { Text("↓") }
+                OutlinedButton(onClick = { onMoveUp(selectedElement.id) }, enabled = elementIndex < elementCount - 1) { Text("↑") }
+                OutlinedButton(onClick = { onBringToFront(selectedElement.id) }, enabled = elementIndex < elementCount - 1) { Text("⤒") }
+            }
+
             Spacer(Modifier.height(12.dp))
             HorizontalDivider()
             Spacer(Modifier.height(12.dp))
@@ -94,6 +112,27 @@ fun PropertiesPanel(
                         selectedFontKey = selectedElement.fontFamily,
                         onFontSelected = { onFontFamilyChange(selectedElement.id, it) },
                     )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedButton(
+                            onClick = { onToggleBold(selectedElement.id) },
+                        ) {
+                            Text(
+                                "B",
+                                fontWeight = if (selectedElement.fontWeight == 700) androidx.compose.ui.text.font.FontWeight.Bold else null,
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = { onToggleItalic(selectedElement.id) },
+                        ) {
+                            Text(
+                                "I",
+                                fontStyle = if (selectedElement.fontStyle == "italic") androidx.compose.ui.text.font.FontStyle.Italic else null,
+                            )
+                        }
+                    }
 
                     Spacer(Modifier.height(8.dp))
 

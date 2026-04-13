@@ -33,9 +33,25 @@ object FontRegistry {
         initialized = true
     }
 
+    // Variant registry for future font addon packages
+    private data class VariantKey(val fontKey: String, val weight: Int, val style: String)
+    private val variants = mutableMapOf<VariantKey, FontFamily>()
+
+    fun registerVariant(key: String, weight: Int, style: String, family: FontFamily) {
+        variants[VariantKey(key, weight, style)] = family
+    }
+
     fun get(key: String): FontFamily {
         if (!initialized) init()
         return entries.find { it.key == key }?.family ?: entries.first().family
+    }
+
+    fun get(key: String, weight: Int, style: String): FontFamily {
+        if (!initialized) init()
+        // Check for a registered real variant first
+        variants[VariantKey(key, weight, style)]?.let { return it }
+        // Fall back to the base font — Compose will apply synthetic weight/style
+        return get(key)
     }
 
     fun allFonts(): List<FontEntry> {

@@ -34,13 +34,18 @@
 - [x] Live validation status in properties panel
 - [x] Canvas rendering with placeholder for invalid data
 
+## v0.6.0 — Feature Sweep (Complete)
+- [x] Image serialization in .bpl (base64 PNG, downscaled to label size)
+- [x] Custom user-saved templates (save/load/delete with TemplateStorage)
+- [x] Z-ordering (bring to front, send to back, move up, move down)
+- [x] Bold/italic (synthetic + FontRegistry addon hook for real variants)
+- [x] Width clamping validation (elements stay within label bounds)
+- [x] Responsive layout: CompactToolbox for narrow windows
+- [x] SaveTemplateDialog + TemplatePickerDialog with saved section
+
 ## Features (Backlog)
-- [ ] Custom user-saved templates (save design as template)
-- [ ] Image serialization in .bpl files (currently lost on save/load)
-- [ ] Width clamping validation (240px V1, 384px V2)
+- [ ] Narrow window responsive right panel (ModalBottomSheet for properties)
 - [ ] Pipeline integration tests (text → encode → packets end-to-end)
-- [ ] Bold/italic font weight variants
-- [ ] Multi-element z-ordering (bring to front / send to back)
 
 ## v0.5.0 — Android Platform (Complete)
 - [x] BLE runtime permissions with rationale dialog (SDK-aware: BLUETOOTH_SCAN+CONNECT on 12+, FINE_LOCATION on 8-11)

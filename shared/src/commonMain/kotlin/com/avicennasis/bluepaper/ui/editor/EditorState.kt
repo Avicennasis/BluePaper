@@ -127,12 +127,14 @@ class EditorState(
     }
 
     fun moveElement(id: String, x: Float, y: Float) {
+        val labelSize = _selectedLabelSize.value
         updateElement(id) { el ->
-            when (el) {
+            val moved = when (el) {
                 is LabelElement.TextElement -> el.copy(x = x, y = y)
                 is LabelElement.ImageElement -> el.copy(x = x, y = y)
                 is LabelElement.BarcodeElement -> el.copy(x = x, y = y)
             }
+            clampToLabel(moved, labelSize.widthPx, labelSize.heightPx)
         }
     }
 
@@ -288,6 +290,84 @@ class EditorState(
 
     fun setBarcodeStructuredDataDone(id: String) { saveUndoSnapshot() }
 
+    // --- Bold/Italic ---
+
+    fun setFontWeight(id: String, weight: Int) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.TextElement) el.copy(fontWeight = weight) else el
+        }
+    }
+
+    fun toggleBold(id: String) {
+        val el = _elements.value.find { it.id == id }
+        if (el is LabelElement.TextElement) {
+            setFontWeight(id, if (el.fontWeight == 700) 400 else 700)
+        }
+    }
+
+    fun setFontStyleValue(id: String, style: String) {
+        saveUndoSnapshot()
+        updateElement(id) { el ->
+            if (el is LabelElement.TextElement) el.copy(fontStyle = style) else el
+        }
+    }
+
+    fun toggleItalic(id: String) {
+        val el = _elements.value.find { it.id == id }
+        if (el is LabelElement.TextElement) {
+            setFontStyleValue(id, if (el.fontStyle == "italic") "normal" else "italic")
+        }
+    }
+
+    // --- Z-Ordering ---
+
+    fun bringToFront(id: String) {
+        saveUndoSnapshot()
+        _elements.value = bringElementToFront(_elements.value, id)
+    }
+
+    fun sendToBack(id: String) {
+        saveUndoSnapshot()
+        _elements.value = sendElementToBack(_elements.value, id)
+    }
+
+    fun moveUp(id: String) {
+        saveUndoSnapshot()
+        _elements.value = moveElementUp(_elements.value, id)
+    }
+
+    fun moveDown(id: String) {
+        saveUndoSnapshot()
+        _elements.value = moveElementDown(_elements.value, id)
+    }
+
+    // --- Template Save ---
+
+    fun saveAsTemplate(name: String, description: String) {
+        val labelSize = _selectedLabelSize.value
+        val w = labelSize.widthPx
+        val h = labelSize.heightPx
+        val templateElements = _elements.value.map { el ->
+            TemplateElement(
+                type = when (el) {
+                    is LabelElement.TextElement -> "text"
+                    is LabelElement.ImageElement -> "image"
+                    is LabelElement.BarcodeElement -> "barcode"
+                },
+                xFraction = el.x / w,
+                yFraction = el.y / h,
+                widthFraction = el.width / w,
+                heightFraction = el.height / h,
+                text = (el as? LabelElement.TextElement)?.text,
+                fontSize = (el as? LabelElement.TextElement)?.fontSize,
+                fontFamily = (el as? LabelElement.TextElement)?.fontFamily,
+            )
+        }
+        val template = LabelTemplate(name, description, templateElements)
+        TemplateStorage.save(template)
+    }
+
     // --- Printer config ---
 
     fun setDensity(d: Int) { _density.value = d.coerceIn(1, _selectedModel.value.maxDensity) }
@@ -300,7 +380,11 @@ class EditorState(
         _density.value = _density.value.coerceAtMost(config.maxDensity)
     }
 
-    fun selectLabelSize(size: LabelSize) { _selectedLabelSize.value = size }
+    fun selectLabelSize(size: LabelSize) {
+        _selectedLabelSize.value = size
+        // Re-clamp all elements to the new label dimensions
+        _elements.value = clampAllToLabel(_elements.value, size.widthPx, size.heightPx)
+    }
 
     fun setGridSize(size: Float) { _gridSize.value = size }
     fun toggleGrid() { _showGrid.value = !_showGrid.value }

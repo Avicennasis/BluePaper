@@ -41,6 +41,7 @@ fun EditorScreen(
     var showBarcodePicker by remember { mutableStateOf(false) }
     var saveRequested by remember { mutableStateOf(false) }
     var loadRequested by remember { mutableStateOf(false) }
+    var showSaveTemplateDialog by remember { mutableStateOf(false) }
     var activeTab by remember { mutableStateOf(0) }
 
     val selectedElement = elements.find { it.id == selectedElementId }
@@ -74,6 +75,7 @@ fun EditorScreen(
             onUndo = { state.undo() },
             onRedo = { state.redo() },
             onTemplates = { showTemplateDialog = true },
+            onSaveTemplate = { showSaveTemplateDialog = true },
             onThemeToggle = onThemeToggle,
             onGridToggle = { state.toggleGrid() },
             onDisconnect = onDisconnect,
@@ -213,6 +215,14 @@ fun EditorScreen(
                     onBarcodeDataStandardChange = { id, std -> state.setBarcodeDataStandard(id, std) },
                     onBarcodeStructuredDataChange = { id, fields -> state.setBarcodeStructuredData(id, fields) },
                     onBarcodeStructuredDataChangeDone = { id -> state.setBarcodeStructuredDataDone(id) },
+                    onToggleBold = { id -> state.toggleBold(id) },
+                    onToggleItalic = { id -> state.toggleItalic(id) },
+                    onBringToFront = { id -> state.bringToFront(id) },
+                    onSendToBack = { id -> state.sendToBack(id) },
+                    onMoveUp = { id -> state.moveUp(id) },
+                    onMoveDown = { id -> state.moveDown(id) },
+                    elementCount = elements.size,
+                    elementIndex = elements.indexOfFirst { it.id == selectedElementId },
                     onPrint = {
                         state.print(monochromeRows, previewWidth, previewHeight)
                         showPrintDialog = true
@@ -248,6 +258,16 @@ fun EditorScreen(
                 showBarcodePicker = false
             },
             onDismiss = { showBarcodePicker = false },
+        )
+    }
+
+    if (showSaveTemplateDialog) {
+        SaveTemplateDialog(
+            onSave = { name, desc ->
+                state.saveAsTemplate(name, desc)
+                showSaveTemplateDialog = false
+            },
+            onDismiss = { showSaveTemplateDialog = false },
         )
     }
 

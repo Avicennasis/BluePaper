@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -16,6 +18,8 @@ fun TemplatePickerDialog(
     onSelect: (LabelTemplate) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val savedTemplates = remember { TemplateStorage.loadAll() }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Choose a Template") },
@@ -30,27 +34,28 @@ fun TemplatePickerDialog(
                     Spacer(Modifier.height(8.dp))
                 }
                 LazyColumn {
+                    // Built-in templates
+                    item {
+                        Text("Built-in", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(4.dp))
+                    }
                     items(templates) { template ->
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelect(template) }
-                                .padding(vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            shape = MaterialTheme.shapes.small,
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(template.name, style = MaterialTheme.typography.titleSmall)
-                                Text(
-                                    template.description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    "${template.elements.size} element(s)",
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
-                            }
+                        TemplateCard(template = template, onClick = { onSelect(template) })
+                    }
+
+                    // Saved templates
+                    if (savedTemplates.isNotEmpty()) {
+                        item {
+                            Spacer(Modifier.height(12.dp))
+                            Text("Saved", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.height(4.dp))
+                        }
+                        items(savedTemplates) { template ->
+                            TemplateCard(
+                                template = template,
+                                onClick = { onSelect(template) },
+                                onDelete = { TemplateStorage.delete(template.name) },
+                            )
                         }
                     }
                 }
@@ -61,4 +66,43 @@ fun TemplatePickerDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
+}
+
+@Composable
+private fun TemplateCard(
+    template: LabelTemplate,
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(template.name, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    template.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "${template.elements.size} element(s)",
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+            if (onDelete != null) {
+                TextButton(onClick = onDelete) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
 }

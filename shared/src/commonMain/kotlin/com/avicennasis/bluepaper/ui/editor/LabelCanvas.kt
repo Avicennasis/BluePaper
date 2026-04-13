@@ -126,7 +126,7 @@ private fun DrawScope.drawTextElement(
 ) {
     if (el.text.isEmpty()) return
 
-    val fontFamily = FontRegistry.get(el.fontFamily)
+    val fontFamily = FontRegistry.get(el.fontFamily, el.fontWeight, el.fontStyle)
     val screenX = el.x * scaleFactor
     val screenY = el.y * scaleFactor
     val maxWidth = if (el.width > 0f) {
@@ -141,6 +141,8 @@ private fun DrawScope.drawTextElement(
             fontSize = (el.fontSize * scaleFactor).sp,
             color = Color.Black,
             fontFamily = fontFamily,
+            fontWeight = androidx.compose.ui.text.font.FontWeight(el.fontWeight),
+            fontStyle = if (el.fontStyle == "italic") androidx.compose.ui.text.font.FontStyle.Italic else androidx.compose.ui.text.font.FontStyle.Normal,
         ),
         constraints = Constraints(maxWidth = maxWidth),
         overflow = TextOverflow.Clip,
