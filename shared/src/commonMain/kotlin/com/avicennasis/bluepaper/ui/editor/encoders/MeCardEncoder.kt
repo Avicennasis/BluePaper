@@ -64,7 +64,9 @@ class MeCardEncoder : DataEncoder {
         if (!data.startsWith("MECARD:")) return emptyMap()
 
         val result = mutableMapOf<String, String>()
-        val body = data.removePrefix("MECARD:").removeSuffix(";;").removeSuffix(";")
+        // Only strip the MECARD terminator ';;' — don't also strip a trailing ';'
+        // as that would corrupt NOTE values ending with a semicolon
+        val body = data.removePrefix("MECARD:").removeSuffix(";;")
 
         for (part in splitFields(body)) {
             when {

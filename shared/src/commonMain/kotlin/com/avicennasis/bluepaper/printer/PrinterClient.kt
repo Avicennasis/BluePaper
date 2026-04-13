@@ -9,6 +9,14 @@ import com.avicennasis.bluepaper.protocol.InfoEnum
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
 import kotlinx.coroutines.delay
 
+private const val END_PAGE_MAX_RETRIES = 200
+private const val END_PAGE_RETRY_DELAY_MS = 50L
+private const val STATUS_POLL_MAX_RETRIES = 1200
+private const val STATUS_POLL_DELAY_MS = 50L
+private const val DEFAULT_DENSITY = 3
+private const val DEFAULT_LABEL_TYPE = 1
+private const val VERSION_DIVISOR = 100.0
+
 class PrinterClient(private val transport: BleTransport) {
 
     // ---- Info Commands ----
@@ -24,9 +32,9 @@ class PrinterClient(private val transport: BleTransport) {
         return response.data.toHexString()
     }
 
-    suspend fun getSoftwareVersion(): Double = getInfo(InfoEnum.SOFTWARE_VERSION) / 100.0
+    suspend fun getSoftwareVersion(): Double = getInfo(InfoEnum.SOFTWARE_VERSION) / VERSION_DIVISOR
 
-    suspend fun getHardwareVersion(): Double = getInfo(InfoEnum.HARDWARE_VERSION) / 100.0
+    suspend fun getHardwareVersion(): Double = getInfo(InfoEnum.HARDWARE_VERSION) / VERSION_DIVISOR
 
     suspend fun heartbeat(): HeartbeatResponse {
         val response = transport.sendCommand(CommandBuilder.heartbeat())
@@ -95,28 +103,61 @@ class PrinterClient(private val transport: BleTransport) {
         return PrintStatus.fromData(response.data)
     }
 
+    // ---- Polling Helpers ----
+
+    private suspend fun waitForPagePrintEnd() {
+        repeat(END_PAGE_MAX_RETRIES) {
+            if (endPagePrint()) {
+                println("[PrinterClient] endPagePrint succeeded on attempt ${it + 1}")
+                return
+            }
+            delay(END_PAGE_RETRY_DELAY_MS)
+        }
+        throw PrinterException("endPagePrint timed out after 10s")
+    }
+
+    private suspend fun waitForPrintComplete(
+        quantity: Int,
+        onProgress: ((Int, Int) -> Unit)? = null,
+    ) {
+        repeat(STATUS_POLL_MAX_RETRIES) {
+            val status = getPrintStatus()
+            onProgress?.invoke(status.page, quantity)
+            if (status.page >= quantity) {
+                println("[PrinterClient] Print complete: ${status.page}/$quantity pages")
+                return
+            }
+            delay(STATUS_POLL_DELAY_MS)
+        }
+        throw PrinterException("Print status polling timed out after 60s")
+    }
+
     // ---- Print Job Orchestration ----
 
     suspend fun print(
         imageRows: List<ByteArray>,
         width: Int,
         height: Int,
-        density: Int,
+        density: Int = DEFAULT_DENSITY,
         quantity: Int,
         isV2: Boolean,
         onProgress: ((Int, Int) -> Unit)? = null,
     ) {
+        var pageStarted = false
         try {
             setLabelDensity(density)
-            setLabelType(1)
+            setLabelType(DEFAULT_LABEL_TYPE)
 
             if (isV2) {
                 startPrintV2(quantity)
             } else {
                 startPrint()
             }
+            println("[PrinterClient] startPrint (v2=$isV2, quantity=$quantity)")
 
             startPagePrint()
+            pageStarted = true
+            println("[PrinterClient] startPagePrint")
 
             if (isV2) {
                 setDimensionV2(height, width, quantity)
@@ -127,26 +168,23 @@ class PrinterClient(private val transport: BleTransport) {
 
             for ((y, lineData) in imageRows.withIndex()) {
                 transport.writeRaw(CommandBuilder.imageRow(y, lineData))
-            }
-
-            run {
-                repeat(200) {
-                    if (endPagePrint()) return@run
-                    delay(50)
+                if ((y + 1) % 50 == 0 || y == imageRows.lastIndex) {
+                    println("[PrinterClient] Sent imageRow batch: ${y + 1}/${imageRows.size}")
                 }
             }
 
-            run {
-                repeat(600) {
-                    val status = getPrintStatus()
-                    onProgress?.invoke(status.page, quantity)
-                    if (status.page >= quantity) return@run
-                    delay(100)
-                }
-            }
+            waitForPagePrintEnd()
+
+            waitForPrintComplete(quantity, onProgress)
 
             endPrint()
+            println("[PrinterClient] endPrint")
         } catch (e: Exception) {
+            if (pageStarted) {
+                try {
+                    endPagePrint()
+                } catch (_: Exception) { }
+            }
             try { endPrint() } catch (_: Exception) { }
             throw e
         }

@@ -6,7 +6,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -18,7 +21,7 @@ fun TemplatePickerDialog(
     onSelect: (LabelTemplate) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val savedTemplates = remember { TemplateStorage.loadAll() }
+    var savedTemplates by remember { mutableStateOf(TemplateStorage.loadAll()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -54,7 +57,10 @@ fun TemplatePickerDialog(
                             TemplateCard(
                                 template = template,
                                 onClick = { onSelect(template) },
-                                onDelete = { TemplateStorage.delete(template.name) },
+                                onDelete = {
+                                    TemplateStorage.delete(template.name)
+                                    savedTemplates = TemplateStorage.loadAll()
+                                },
                             )
                         }
                     }

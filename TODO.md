@@ -19,7 +19,7 @@
 - [x] Ctrl+Z / Ctrl+Shift+Z keyboard shortcuts
 - [x] .bpl v2 format with elements list (auto-migrate v1 on load)
 - [x] Numeric property inputs alongside sliders in right panel
-- [ ] Narrow window fallback (< 800dp: left panel collapses, right panel becomes bottom sheet)
+- [x] Narrow window fallback (< 800dp: CompactToolbox + ModalBottomSheet properties)
 
 ## v0.4.0 — QR/Barcode Generation (Complete)
 - [x] BarcodeElement type — third LabelElement variant
@@ -34,6 +34,13 @@
 - [x] Live validation status in properties panel
 - [x] Canvas rendering with placeholder for invalid data
 
+## v0.5.0 — Android Platform (Complete)
+- [x] BLE runtime permissions with rationale dialog (SDK-aware: BLUETOOTH_SCAN+CONNECT on 12+, FINE_LOCATION on 8-11)
+- [x] Image picker via SAF OpenDocument (replaces disabled stub)
+- [x] File save/load via SAF CreateDocument/OpenDocument (composable effect pattern)
+- [x] ThemePreferences via SharedPreferences (persists theme choice)
+- [x] BlePermissionHandler wraps app in MainActivity
+
 ## v0.6.0 — Feature Sweep (Complete)
 - [x] Image serialization in .bpl (base64 PNG, downscaled to label size)
 - [x] Custom user-saved templates (save/load/delete with TemplateStorage)
@@ -43,16 +50,59 @@
 - [x] Responsive layout: CompactToolbox for narrow windows
 - [x] SaveTemplateDialog + TemplatePickerDialog with saved section
 
-## Features (Backlog)
-- [ ] Narrow window responsive right panel (ModalBottomSheet for properties)
-- [ ] Pipeline integration tests (text → encode → packets end-to-end)
+## v0.7.0 — Code Quality Sweep (Complete)
+- [x] Extract magic numbers to constants (PrinterClient retry counts, thresholds, timeouts)
+- [x] Add debug logging to PrinterClient and KableBleTransport
+- [x] Move scan prefixes from ScannerState to DeviceRegistry.models()
+- [x] Extract PrinterClient polling into named methods (waitForPagePrintEnd, waitForPrintComplete)
+- [x] PrinterClient: throw on timeout instead of silent fallthrough
+- [x] PrinterClient: fix catch block to call endPagePrint() before endPrint()
+- [x] MonochromeEncoder: parameterize rotation (3 paths → 1 parameterized function)
+- [x] BLE scan: fix serial Flow.collect blocking (merge all prefix flows)
+- [x] KableBleTransport: fix connect(ScannedDevice) — cache advertisements, skip standard GATT services
+- [x] RFIDResponse: add bounds checking on all field accesses
+- [x] BarcodeValidator: fix UPC-E check digit (expand to UPC-A first)
+- [x] BarcodeValidator: add length validation for all fixed-length formats
+- [x] BarcodeValidator: add RSS-14 autoFix, fix ITF empty string guard
+- [x] WifiEncoder: escape special chars (`;`, `\`, `,`, `"`) for roundtrip safety
+- [x] EmailEncoder: percent-encode subject/body in mailto URIs
+- [x] MeCardEncoder: fix decode strip that corrupted NOTE values
+- [x] HibcEncoder: validate and normalize LIC to exactly 4 chars
+- [x] VCardEncoder: handle RFC 6350 line folding in decode
+- [x] GS1-128 Encoder: widen AI regex to 2-4 digit Application Identifiers
+- [x] AAMVA Encoder: document fabricated header limitation
+- [x] EditorState: fix undo to capture pre-change state (snapshot at drag start, not end)
+- [x] EditorState: thread-safety comment on nextId (main-thread confined)
+- [x] EditorState: saveAsTemplate preserves barcode/image/style fields
+- [x] EditorState: div-by-zero guard on label dimensions
+- [x] TemplateElement: add barcode, image, and style fields
+- [x] TemplateManager: handle "barcode" type in scaleToLabel (was falling to "Unknown")
+- [x] LabelDesign: fix migrateToV2 false-positive guard (remove elements.isNotEmpty check)
+- [x] TemplateStorage: fix slugify name collision (numeric suffix disambiguation)
+- [x] TemplateStorage (Android): lateinit instead of silent null no-op
+- [x] TemplatePickerDialog: fix stale remember after delete (mutableStateOf)
+- [x] BarcodeRenderer: thread-safe cache (@Synchronized on LinkedHashMap)
+- [x] FontRegistry: @Synchronized init (prevent double-init race)
+- [x] DeviceRegistry: const val for primitive constants, add scanPrefixes()
+- [x] ScannerScreen: wrap onConnected in LaunchedEffect (fix composition side-effect)
+- [x] FileSaveLoad (desktop): withContext(Dispatchers.IO) for JFileChooser
+- [x] FileSaveLoad (desktop): log errors instead of silent catch
+- [x] PropertiesPanel: fix NumericField decimal input (focus-aware sync)
+- [x] Remove dead FilePicker expect/actual declarations
+- [x] Wire CompactToolbox for narrow windows (< 800dp)
+- [x] Add ModalBottomSheet for properties panel on narrow windows
+- [x] CanvasInteraction: document hitTest rotation limitation + hitTestHandle status
+- [x] Pipeline integration tests (pixels → MonochromeEncoder → CommandBuilder → packets)
+- [x] BarcodeValidator tests: length, check digit, UPC-E autoFix, RSS-14, ITF empty
+- [x] Encoder roundtrip tests: Phone, URL, WiFi escaping, Email encoding, MeCard
+- [x] Protocol tests: non-coincidental checksum, HeartbeatResponse null assertions
+- [x] Serialization tests: corrupt/unknown barcode format deserialization
+- [x] EditorState tests: undo/redo behavior, template save
+- [x] Build: version catalog for androidx deps, jvmToolchain(17) for desktopApp
+- [x] 314 tests passing (up from 272)
 
-## v0.5.0 — Android Platform (Complete)
-- [x] BLE runtime permissions with rationale dialog (SDK-aware: BLUETOOTH_SCAN+CONNECT on 12+, FINE_LOCATION on 8-11)
-- [x] Image picker via SAF OpenDocument (replaces disabled stub)
-- [x] File save/load via SAF CreateDocument/OpenDocument (composable effect pattern)
-- [x] ThemePreferences via SharedPreferences (persists theme choice)
-- [x] BlePermissionHandler wraps app in MainActivity
+## Features (Backlog)
+- [ ] Resize handles interactive (hitTestHandle is defined, needs pointer input wiring)
 
 ## iOS (Backlog)
 - [ ] Image picker via PHPicker (currently stubbed)
@@ -62,14 +112,6 @@
 ## Desktop BLE (Backlog)
 - [ ] Linux BLE via BlueZ D-Bus (Kable doesn't support Linux JVM BLE)
 - [ ] Windows BLE via WinRT (Kable doesn't support Windows JVM BLE)
-
-## Code Quality (Backlog)
-- [ ] Extract magic numbers to constants (retry counts, thresholds, timeouts)
-- [ ] Add debug logging to PrinterClient and KableBleTransport
-- [ ] Move scan prefixes from ScannerState to DeviceRegistry
-- [ ] UI snapshot/interaction tests
-- [ ] Extract PrinterClient polling into named methods (waitForPagePrintEnd, waitForPrintComplete)
-- [ ] MonochromeEncoder: parameterize rotation instead of 3 separate code paths
 
 ## Hardware-Dependent (needs Niimbot printer)
 - [ ] Real BLE testing with physical printer

@@ -69,4 +69,13 @@ class WifiEncoderTest {
         val encryption = encoder.fields().first { it.key == "encryption" }
         assertEquals(FieldType.TEXT, encryption.fieldType)
     }
+
+    @Test
+    fun roundTripWithSpecialChars() {
+        val original = mapOf("ssid" to "My;Net\\work", "password" to "p@ss;word", "encryption" to "WPA")
+        val encoded = encoder.encode(original)
+        val decoded = encoder.decode(encoded)
+        assertEquals(original["ssid"], decoded["ssid"])
+        assertEquals(original["password"], decoded["password"])
+    }
 }

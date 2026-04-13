@@ -11,42 +11,28 @@ object MonochromeEncoder {
      * Returns the rotated pixels and the new (width, height).
      */
     fun rotatePixels(pixels: IntArray, width: Int, height: Int, degrees: Int): Triple<IntArray, Int, Int> {
-        val normalized = ((degrees % 360) + 360) % 360
-        return when (normalized) {
-            0 -> Triple(pixels, width, height)
-            90 -> {
-                val newW = height
-                val newH = width
-                val rotated = IntArray(newW * newH)
-                for (y in 0 until height) {
-                    for (x in 0 until width) {
-                        rotated[x * newW + (height - 1 - y)] = pixels[y * width + x]
-                    }
-                }
-                Triple(rotated, newW, newH)
-            }
-            180 -> {
-                val rotated = IntArray(width * height)
-                for (y in 0 until height) {
-                    for (x in 0 until width) {
-                        rotated[(height - 1 - y) * width + (width - 1 - x)] = pixels[y * width + x]
-                    }
-                }
-                Triple(rotated, width, height)
-            }
-            270 -> {
-                val newW = height
-                val newH = width
-                val rotated = IntArray(newW * newH)
-                for (y in 0 until height) {
-                    for (x in 0 until width) {
-                        rotated[(width - 1 - x) * newW + y] = pixels[y * width + x]
-                    }
-                }
-                Triple(rotated, newW, newH)
-            }
-            else -> Triple(pixels, width, height)
+        val normalizedDegrees = ((degrees % 360) + 360) % 360
+        if (normalizedDegrees == 0) return Triple(pixels, width, height)
+
+        val (newWidth, newHeight) = when (normalizedDegrees) {
+            90, 270 -> height to width
+            180 -> width to height
+            else -> return Triple(pixels, width, height)
         }
+
+        val result = IntArray(pixels.size)
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val (newX, newY) = when (normalizedDegrees) {
+                    90 -> (height - 1 - y) to x
+                    180 -> (width - 1 - x) to (height - 1 - y)
+                    270 -> y to (width - 1 - x)
+                    else -> x to y
+                }
+                result[newY * newWidth + newX] = pixels[y * width + x]
+            }
+        }
+        return Triple(result, newWidth, newHeight)
     }
 
     fun encode(

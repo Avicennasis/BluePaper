@@ -4,10 +4,12 @@ import com.avicennasis.bluepaper.ble.BleScanner
 import com.avicennasis.bluepaper.ble.BleTransport
 import com.avicennasis.bluepaper.ble.ConnectionState
 import com.avicennasis.bluepaper.ble.ScannedDevice
+import com.avicennasis.bluepaper.config.DeviceRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
 class ScannerState(
@@ -36,13 +38,11 @@ class ScannerState(
 
         scanJob = scope.launch {
             try {
-                val prefixes = listOf("d110", "d11", "d101", "d110_m", "b18", "b21", "b1")
-                for (prefix in prefixes) {
-                    scanner.scan(prefix).collect { device ->
-                        val current = _devices.value
-                        if (current.none { it.address == device.address }) {
-                            _devices.value = current + device
-                        }
+                val prefixes = DeviceRegistry.models()
+                prefixes.map { scanner.scan(it) }.merge().collect { device ->
+                    val current = _devices.value
+                    if (current.none { it.address == device.address }) {
+                        _devices.value = current + device
                     }
                 }
             } catch (e: Exception) {

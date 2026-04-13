@@ -6,6 +6,7 @@ import com.avicennasis.bluepaper.config.DeviceConfig
 import com.avicennasis.bluepaper.config.DeviceRegistry
 import com.avicennasis.bluepaper.config.LabelSize
 import com.avicennasis.bluepaper.printer.PrinterClient
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,6 +78,15 @@ class EditorState(
         updateUndoState()
     }
 
+    private var interactionSnapshotSaved = false
+
+    private fun saveUndoSnapshotIfNeeded() {
+        if (!interactionSnapshotSaved) {
+            saveUndoSnapshot()
+            interactionSnapshotSaved = true
+        }
+    }
+
     fun undo() {
         val restored = undoManager.undo(_elements.value) ?: return
         _elements.value = restored
@@ -94,6 +104,7 @@ class EditorState(
     fun selectedElement(): LabelElement? =
         _elements.value.find { it.id == _selectedElementId.value }
 
+    // Thread-confined to main thread (all callers are UI/Compose operations)
     private var nextId = 0
     private fun newId(prefix: String) = "${prefix}_${nextId++}"
 
@@ -127,6 +138,7 @@ class EditorState(
     }
 
     fun moveElement(id: String, x: Float, y: Float) {
+        saveUndoSnapshotIfNeeded()
         val labelSize = _selectedLabelSize.value
         updateElement(id) { el ->
             val moved = when (el) {
@@ -138,9 +150,10 @@ class EditorState(
         }
     }
 
-    fun moveElementDone(id: String) { saveUndoSnapshot() }
+    fun moveElementDone(id: String) { interactionSnapshotSaved = false }
 
     fun resizeElement(id: String, width: Float, height: Float) {
+        saveUndoSnapshotIfNeeded()
         val w = width.coerceAtLeast(MIN_ELEMENT_SIZE)
         val h = height.coerceAtLeast(MIN_ELEMENT_SIZE)
         updateElement(id) { el ->
@@ -152,7 +165,7 @@ class EditorState(
         }
     }
 
-    fun resizeElementDone(id: String) { saveUndoSnapshot() }
+    fun resizeElementDone(id: String) { interactionSnapshotSaved = false }
 
     fun setElementPosition(id: String, x: Float, y: Float, width: Float, height: Float) {
         saveUndoSnapshot()
@@ -177,20 +190,22 @@ class EditorState(
     }
 
     fun setTextContent(id: String, text: String) {
+        saveUndoSnapshotIfNeeded()
         updateElement(id) { el ->
             if (el is LabelElement.TextElement) el.copy(text = text) else el
         }
     }
 
-    fun setTextContentDone(id: String) { saveUndoSnapshot() }
+    fun setTextContentDone(id: String) { interactionSnapshotSaved = false }
 
     fun setFontSize(id: String, size: Float) {
+        saveUndoSnapshotIfNeeded()
         updateElement(id) { el ->
             if (el is LabelElement.TextElement) el.copy(fontSize = size) else el
         }
     }
 
-    fun setFontSizeDone(id: String) { saveUndoSnapshot() }
+    fun setFontSizeDone(id: String) { interactionSnapshotSaved = false }
 
     fun setFontFamily(id: String, fontFamily: String) {
         saveUndoSnapshot()
@@ -200,12 +215,13 @@ class EditorState(
     }
 
     fun setImageScale(id: String, scale: Float) {
+        saveUndoSnapshotIfNeeded()
         updateElement(id) { el ->
             if (el is LabelElement.ImageElement) el.copy(scale = scale.coerceIn(0.1f, 5f)) else el
         }
     }
 
-    fun setImageScaleDone(id: String) { saveUndoSnapshot() }
+    fun setImageScaleDone(id: String) { interactionSnapshotSaved = false }
 
     fun toggleImageFlipH(id: String) {
         saveUndoSnapshot()
@@ -248,12 +264,13 @@ class EditorState(
     }
 
     fun setBarcodeData(id: String, data: String) {
+        saveUndoSnapshotIfNeeded()
         updateElement(id) { el ->
             if (el is LabelElement.BarcodeElement) el.copy(data = data) else el
         }
     }
 
-    fun setBarcodeDataDone(id: String) { saveUndoSnapshot() }
+    fun setBarcodeDataDone(id: String) { interactionSnapshotSaved = false }
 
     fun setBarcodeFormat(id: String, format: BarcodeFormat) {
         saveUndoSnapshot()
@@ -280,6 +297,7 @@ class EditorState(
     }
 
     fun setBarcodeStructuredData(id: String, fields: Map<String, String>) {
+        saveUndoSnapshotIfNeeded()
         updateElement(id) { el ->
             if (el is LabelElement.BarcodeElement) {
                 val encoded = DataEncoderRegistry.encode(el.dataStandard, fields)
@@ -288,7 +306,7 @@ class EditorState(
         }
     }
 
-    fun setBarcodeStructuredDataDone(id: String) { saveUndoSnapshot() }
+    fun setBarcodeStructuredDataDone(id: String) { interactionSnapshotSaved = false }
 
     // --- Bold/Italic ---
 
@@ -346,8 +364,8 @@ class EditorState(
 
     fun saveAsTemplate(name: String, description: String) {
         val labelSize = _selectedLabelSize.value
-        val w = labelSize.widthPx
-        val h = labelSize.heightPx
+        val w = labelSize.widthPx.toFloat().takeIf { it > 0f } ?: 1f
+        val h = labelSize.heightPx.toFloat().takeIf { it > 0f } ?: 1f
         val templateElements = _elements.value.map { el ->
             TemplateElement(
                 type = when (el) {
@@ -362,6 +380,14 @@ class EditorState(
                 text = (el as? LabelElement.TextElement)?.text,
                 fontSize = (el as? LabelElement.TextElement)?.fontSize,
                 fontFamily = (el as? LabelElement.TextElement)?.fontFamily,
+                fontWeight = (el as? LabelElement.TextElement)?.fontWeight,
+                fontStyle = (el as? LabelElement.TextElement)?.fontStyle,
+                barcodeFormat = (el as? LabelElement.BarcodeElement)?.format?.name,
+                barcodeData = (el as? LabelElement.BarcodeElement)?.data,
+                errorCorrection = (el as? LabelElement.BarcodeElement)?.errorCorrection?.name,
+                dataStandard = (el as? LabelElement.BarcodeElement)?.dataStandard?.name,
+                imageScale = (el as? LabelElement.ImageElement)?.scale,
+                rotation = el.rotation,
             )
         }
         val template = LabelTemplate(name, description, templateElements)

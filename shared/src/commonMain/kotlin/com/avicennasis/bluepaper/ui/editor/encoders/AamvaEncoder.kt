@@ -28,6 +28,10 @@ class AamvaEncoder : DataEncoder {
     )
 
     override fun encode(fields: Map<String, String>): String {
+        // NOTE: The ANSI header below uses placeholder offset/length values.
+        // Real AAMVA-compliant readers require accurate byte offsets.
+        // This encoder produces demonstration-quality output suitable for
+        // visual barcode rendering but NOT for machine-readable compliance.
         return buildString {
             appendLine("@")
             appendLine()

@@ -10,6 +10,7 @@ class HibcEncoder : DataEncoder {
     override val standard = DataStandard.HIBC
 
     override fun fields(): List<DataField> = listOf(
+        // LIC must be exactly 4 uppercase alphanumeric characters per HIBC standard
         DataField("lic", "Labeler ID Code", required = true),
         DataField("pcn", "Product/Catalog Number", required = true),
         DataField("uom", "Unit of Measure", hint = "0"),
@@ -17,7 +18,9 @@ class HibcEncoder : DataEncoder {
     )
 
     override fun encode(fields: Map<String, String>): String {
-        val lic = fields["lic"].orEmpty()
+        val rawLic = fields["lic"].orEmpty().uppercase()
+        // Validate and normalize LIC to exactly 4 uppercase alphanumeric characters
+        val lic = rawLic.filter { it.isLetterOrDigit() }.take(4).padEnd(4, ' ')
         val pcn = fields["pcn"].orEmpty()
         val uom = fields["uom"]?.takeIf { it.isNotEmpty() } ?: "0"
         val quantity = fields["quantity"]

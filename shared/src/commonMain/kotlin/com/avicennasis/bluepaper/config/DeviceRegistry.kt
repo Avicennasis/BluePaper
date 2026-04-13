@@ -2,9 +2,9 @@ package com.avicennasis.bluepaper.config
 
 object DeviceRegistry {
 
-    private val V1_MAX_WIDTH = 240
-    private val V2_MAX_WIDTH = 384
-    private val DEFAULT_MAX_DENSITY = 3
+    private const val V1_MAX_WIDTH = 240
+    private const val V2_MAX_WIDTH = 384
+    private const val DEFAULT_MAX_DENSITY = 3
 
     private fun sizes(dpi: Int, vararg dims: Pair<Double, Double>): List<LabelSize> =
         dims.map { (w, h) -> LabelSize(w, h, dpi) }
@@ -57,4 +57,8 @@ object DeviceRegistry {
     fun all(): List<DeviceConfig> = configs.values.toList()
 
     fun models(): List<String> = configs.keys.toList()
+
+    /** Returns BLE advertised-name prefixes derived from registered models, for scan filtering. */
+    fun scanPrefixes(): List<String> =
+        configs.keys.map { it.uppercase() }.distinct()
 }

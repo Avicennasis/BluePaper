@@ -9,6 +9,18 @@ import java.awt.image.BufferedImage
 
 actual object BarcodeRenderer {
     private val cache = LinkedHashMap<String, ImageBitmap>(20, 0.75f, true)
+    private const val MAX_CACHE_SIZE = 20
+
+    @Synchronized
+    private fun getCached(key: String): ImageBitmap? = cache[key]
+
+    @Synchronized
+    private fun putCache(key: String, value: ImageBitmap) {
+        if (cache.size >= MAX_CACHE_SIZE) {
+            cache.remove(cache.keys.first())
+        }
+        cache[key] = value
+    }
 
     actual fun render(
         format: BarcodeFormat,
@@ -19,7 +31,7 @@ actual object BarcodeRenderer {
     ): ImageBitmap? {
         if (data.isEmpty() || width <= 0 || height <= 0) return null
         val key = "${format.name}|$data|$width|$height|${errorCorrection.name}"
-        cache[key]?.let { return it }
+        getCached(key)?.let { return it }
 
         val bitmap = try {
             val zxingFormat = mapFormat(format)
@@ -37,8 +49,7 @@ actual object BarcodeRenderer {
         } catch (_: Exception) { null }
 
         if (bitmap != null) {
-            if (cache.size >= 20) cache.remove(cache.keys.first())
-            cache[key] = bitmap
+            putCache(key, bitmap)
         }
         return bitmap
     }

@@ -29,7 +29,7 @@ class EmailEncoderTest {
         val result = EmailEncoder.encode(
             mapOf("address" to "user@example.com", "subject" to "Hi", "body" to "Hello there")
         )
-        assertEquals("mailto:user@example.com?subject=Hi&body=Hello there", result)
+        assertEquals("mailto:user@example.com?subject=Hi&body=Hello%20there", result)
     }
 
     @Test
@@ -68,6 +68,15 @@ class EmailEncoderTest {
         val encoded = EmailEncoder.encode(original)
         val decoded = EmailEncoder.decode(encoded)
         assertEquals(original["address"], decoded["address"])
+        assertEquals(original["subject"], decoded["subject"])
+        assertEquals(original["body"], decoded["body"])
+    }
+
+    @Test
+    fun roundTripWithAmpersand() {
+        val original = mapOf("address" to "test@example.com", "subject" to "Tom & Jerry", "body" to "A&B")
+        val encoded = EmailEncoder.encode(original)
+        val decoded = EmailEncoder.decode(encoded)
         assertEquals(original["subject"], decoded["subject"])
         assertEquals(original["body"], decoded["body"])
     }

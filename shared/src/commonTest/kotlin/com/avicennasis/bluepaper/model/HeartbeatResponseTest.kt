@@ -2,6 +2,7 @@ package com.avicennasis.bluepaper.model
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class HeartbeatResponseTest {
@@ -50,6 +51,19 @@ class HeartbeatResponseTest {
         val data = ByteArray(20).also { it[18] = 1; it[19] = 1 }
         val hb = HeartbeatResponse.fromData(data)
         assertEquals(1, hb.paperState)
+        assertEquals(1, hb.rfidReadState)
+    }
+
+    @Test
+    fun parse20ByteResponseNullFields() {
+        val data = ByteArray(20)
+        data[18] = 2
+        data[19] = 1
+        val hb = HeartbeatResponse.fromData(data)
+        assertNotNull(hb)
+        assertNull(hb.closingState)
+        assertNull(hb.powerLevel)
+        assertEquals(2, hb.paperState)
         assertEquals(1, hb.rfidReadState)
     }
 

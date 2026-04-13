@@ -31,7 +31,10 @@ class Gs1128Encoder : DataEncoder {
     override fun decode(data: String): Map<String, String> {
         val result = mutableMapOf<String, String>()
         val aiToKey = FIELD_AIS.entries.associate { (key, ai) -> ai to key }
-        val pattern = Regex("""\((\d{2})\)([^(]*)""")
+        // GS1 Application Identifiers can be 2, 3, or 4 digits.
+        // Note: FIELD_AIS only maps 2-digit AIs, so 3-4 digit AIs will be
+        // parsed but won't match a named field and will be silently ignored.
+        val pattern = Regex("""\((\d{2,4})\)([^(]*)""")
 
         for (match in pattern.findAll(data)) {
             val ai = match.groupValues[1]

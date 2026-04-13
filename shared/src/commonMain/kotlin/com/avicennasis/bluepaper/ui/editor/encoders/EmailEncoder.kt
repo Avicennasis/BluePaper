@@ -19,8 +19,8 @@ object EmailEncoder : DataEncoder {
         val subject = fields["subject"].orEmpty()
         val body = fields["body"].orEmpty()
         val params = buildList {
-            if (subject.isNotEmpty()) add("subject=$subject")
-            if (body.isNotEmpty()) add("body=$body")
+            if (subject.isNotEmpty()) add("subject=${percentEncode(subject)}")
+            if (body.isNotEmpty()) add("body=${percentEncode(body)}")
         }
         return if (params.isEmpty()) {
             "mailto:$address"
@@ -40,7 +40,7 @@ object EmailEncoder : DataEncoder {
         val params = query.split("&").associate { part ->
             val eqIndex = part.indexOf('=')
             if (eqIndex >= 0) {
-                part.substring(0, eqIndex) to part.substring(eqIndex + 1)
+                part.substring(0, eqIndex) to percentDecode(part.substring(eqIndex + 1))
             } else {
                 part to ""
             }
@@ -51,4 +51,10 @@ object EmailEncoder : DataEncoder {
             "body" to params.getOrDefault("body", ""),
         )
     }
+
+    private fun percentEncode(value: String): String =
+        value.replace("%", "%25").replace("&", "%26").replace("=", "%3D").replace(" ", "%20")
+
+    private fun percentDecode(value: String): String =
+        value.replace("%26", "&").replace("%3D", "=").replace("%20", " ").replace("%25", "%")
 }

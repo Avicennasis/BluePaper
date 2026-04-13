@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -23,9 +24,10 @@ fun ScannerScreen(
     val connectionState by state.connectionState.collectAsState()
     val error by state.error.collectAsState()
 
-    if (connectionState == ConnectionState.CONNECTED) {
-        onConnected()
-        return
+    LaunchedEffect(connectionState) {
+        if (connectionState == ConnectionState.CONNECTED) {
+            onConnected()
+        }
     }
 
     Column(

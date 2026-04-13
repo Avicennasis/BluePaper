@@ -19,6 +19,14 @@ data class TemplateElement(
     val text: String? = null,
     val fontSize: Float? = null,
     val fontFamily: String? = null,
+    val barcodeFormat: String? = null,
+    val barcodeData: String? = null,
+    val errorCorrection: String? = null,
+    val dataStandard: String? = null,
+    val imageScale: Float? = null,
+    val rotation: Float = 0f,
+    val fontWeight: Int? = null,
+    val fontStyle: String? = null,
 )
 
 object TemplateManager {
@@ -88,13 +96,38 @@ object TemplateManager {
         return when (templateEl.type) {
             "text" -> LabelElement.TextElement(
                 id = id, x = x, y = y, width = w, height = h,
+                rotation = templateEl.rotation,
                 text = templateEl.text ?: "Text",
                 fontSize = templateEl.fontSize ?: 24f,
                 fontFamily = templateEl.fontFamily ?: "default",
+                fontWeight = templateEl.fontWeight ?: 400,
+                fontStyle = templateEl.fontStyle ?: "normal",
             )
             "image" -> LabelElement.ImageElement(
                 id = id, x = x, y = y, width = w, height = h,
+                rotation = templateEl.rotation,
+                scale = templateEl.imageScale ?: 1f,
             )
+            "barcode" -> {
+                val format = templateEl.barcodeFormat
+                    ?.let { runCatching { BarcodeFormat.valueOf(it) }.getOrNull() }
+                if (format != null) {
+                    LabelElement.BarcodeElement(
+                        id = id, x = x, y = y, width = w, height = h,
+                        rotation = templateEl.rotation,
+                        data = templateEl.barcodeData ?: "",
+                        format = format,
+                        errorCorrection = templateEl.errorCorrection
+                            ?.let { runCatching { ErrorCorrection.valueOf(it) }.getOrNull() }
+                            ?: ErrorCorrection.M,
+                        dataStandard = templateEl.dataStandard
+                            ?.let { runCatching { DataStandard.valueOf(it) }.getOrNull() }
+                            ?: DataStandard.RAW_TEXT,
+                    )
+                } else {
+                    LabelElement.TextElement(id = id, x = x, y = y, text = "Barcode")
+                }
+            }
             else -> LabelElement.TextElement(id = id, x = x, y = y, text = "Unknown")
         }
     }

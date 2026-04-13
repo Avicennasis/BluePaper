@@ -25,7 +25,9 @@ object FontRegistry {
         Triple("anton", "Anton", "Display"),
     )
 
+    @Synchronized
     fun init(fonts: Map<String, FontFamily> = emptyMap()) {
+        if (initialized) return
         entries.clear()
         for ((key, name, category) in defaultEntries) {
             entries.add(FontEntry(key, name, category, fonts[key] ?: FontFamily.Default))

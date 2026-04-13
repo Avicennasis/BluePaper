@@ -5,7 +5,7 @@ import kotlinx.serialization.json.Json
 
 @Serializable
 data class LabelDesign(
-    val version: Int = 1,
+    val version: Int = 1, // Default 1 for deserialization of v1 files without a version field
     val model: String = "d110",
     val labelWidthMm: Double = 30.0,
     val labelHeightMm: Double = 15.0,
@@ -26,7 +26,7 @@ data class LabelDesign(
     }
 
     fun migrateToV2(): LabelDesign {
-        if (version >= 2 || elements.isNotEmpty()) return this
+        if (version >= 2) return this
 
         val migrated = mutableListOf<SerializableLabelElement>()
 

@@ -6,7 +6,7 @@ import java.io.File
 
 actual object TemplateStorage {
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
-    private var dir: File? = null
+    private lateinit var dir: File
 
     fun init(context: Context) {
         dir = File(context.filesDir, "templates").also { it.mkdirs() }
@@ -15,15 +15,32 @@ actual object TemplateStorage {
     private fun slugify(name: String): String =
         name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
 
+    private fun resolveFile(slug: String, templateName: String): File {
+        val base = File(dir, "$slug.json")
+        if (!base.exists()) return base
+        try {
+            val existing = json.decodeFromString(LabelTemplate.serializer(), base.readText())
+            if (existing.name == templateName) return base
+        } catch (_: Exception) { }
+        var suffix = 2
+        while (true) {
+            val candidate = File(dir, "$slug-$suffix.json")
+            if (!candidate.exists()) return candidate
+            try {
+                val existing = json.decodeFromString(LabelTemplate.serializer(), candidate.readText())
+                if (existing.name == templateName) return candidate
+            } catch (_: Exception) { }
+            suffix++
+        }
+    }
+
     actual fun save(template: LabelTemplate) {
-        val d = dir ?: return
-        val file = File(d, "${slugify(template.name)}.json")
+        val file = resolveFile(slugify(template.name), template.name)
         file.writeText(json.encodeToString(LabelTemplate.serializer(), template))
     }
 
     actual fun loadAll(): List<LabelTemplate> {
-        val d = dir ?: return emptyList()
-        return d.listFiles { f -> f.extension == "json" }?.mapNotNull { file ->
+        return dir.listFiles { f -> f.extension == "json" }?.mapNotNull { file ->
             try {
                 json.decodeFromString(LabelTemplate.serializer(), file.readText())
             } catch (_: Exception) { null }
@@ -31,7 +48,15 @@ actual object TemplateStorage {
     }
 
     actual fun delete(name: String) {
-        val d = dir ?: return
-        File(d, "${slugify(name)}.json").delete()
+        val files = dir.listFiles { f -> f.extension == "json" } ?: return
+        for (file in files) {
+            try {
+                val template = json.decodeFromString(LabelTemplate.serializer(), file.readText())
+                if (template.name == name) {
+                    file.delete()
+                    return
+                }
+            } catch (_: Exception) { }
+        }
     }
 }

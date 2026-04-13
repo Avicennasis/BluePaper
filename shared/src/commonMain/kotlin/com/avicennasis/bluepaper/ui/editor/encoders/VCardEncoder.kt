@@ -58,8 +58,10 @@ class VCardEncoder : DataEncoder {
     }
 
     override fun decode(data: String): Map<String, String> {
+        // Unfold RFC 6350 folded lines (continuation lines start with space or tab)
+        val unfolded = data.replace("\r\n ", "").replace("\r\n\t", "").replace("\n ", "").replace("\n\t", "")
         val result = mutableMapOf<String, String>()
-        for (line in data.lines()) {
+        for (line in unfolded.lines()) {
             val trimmed = line.trim()
             when {
                 trimmed.startsWith("N:") -> {

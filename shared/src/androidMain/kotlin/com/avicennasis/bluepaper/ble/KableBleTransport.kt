@@ -5,11 +5,13 @@ import com.avicennasis.bluepaper.printer.PrinterNotConnectedException
 import com.avicennasis.bluepaper.printer.PrinterProtocolException
 import com.avicennasis.bluepaper.printer.PrinterTimeoutException
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
+import com.juul.kable.Advertisement
 import com.juul.kable.Characteristic
 import com.juul.kable.Peripheral
 import com.juul.kable.State
 import com.juul.kable.WriteType
 import com.juul.kable.characteristicOf
+import com.juul.kable.peripheral
 import kotlin.uuid.ExperimentalUuidApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,35 +37,59 @@ class KableBleTransport : BleTransport {
     private val commandMutex = Mutex()
     private var scope: CoroutineScope? = null
 
+    /** Cache of advertisements seen during scanning, keyed by device address. */
+    private val advertisementCache = mutableMapOf<String, Advertisement>()
+
+    /**
+     * Store an advertisement so [connect] can look it up later by address.
+     * Called from the scanner layer when advertisements are observed.
+     */
+    fun cacheAdvertisement(advertisement: Advertisement) {
+        val address = advertisement.identifier.toString()
+        advertisementCache[address] = advertisement
+        println("[KableBleTransport] Cached advertisement for $address")
+    }
+
     override suspend fun connect(device: ScannedDevice) {
-        _connectionState.value = ConnectionState.CONNECTING
-        try {
-            throw PrinterException(
-                "KableBleTransport.connect() requires an Advertisement object from KableBleScanner. " +
-                "Use connectWithPeripheral() instead."
+        println("[KableBleTransport] connect() called for ${device.name} (${device.address})")
+        val advertisement = advertisementCache[device.address]
+            ?: throw PrinterException(
+                "No cached advertisement for address ${device.address}. " +
+                "Ensure the scanner is using this transport's cacheAdvertisement() method."
             )
-        } catch (e: PrinterException) {
-            _connectionState.value = ConnectionState.DISCONNECTED
-            throw e
-        }
+
+        val kablePeripheral = Peripheral(advertisement)
+        connectWithPeripheral(kablePeripheral)
     }
 
     suspend fun connectWithPeripheral(kablePeripheral: Peripheral) {
+        println("[KableBleTransport] connectWithPeripheral() starting")
         _connectionState.value = ConnectionState.CONNECTING
 
         try {
             peripheral = kablePeripheral
             kablePeripheral.connect()
+            println("[KableBleTransport] BLE connected, discovering services...")
 
             val services = kablePeripheral.services.value
                 ?: throw PrinterProtocolException("No services discovered")
 
+            // TODO: Filter characteristics by properties (read + write-without-response + notify)
+            // when Kable exposes CharacteristicProperty API. For now, prefer characteristics
+            // from non-standard services (skip Device Information, Generic Access, etc.)
             var foundCharacteristic: Characteristic? = null
             outer@ for (service in services) {
+                val uuid = service.serviceUuid.toString().lowercase()
+                // Skip well-known GATT services (0x180x range)
+                if (uuid.startsWith("0000180")) continue
                 for (char in service.characteristics) {
                     foundCharacteristic = characteristicOf(
                         service = service.serviceUuid,
                         characteristic = char.characteristicUuid,
+                    )
+                    println(
+                        "[KableBleTransport] Found characteristic: " +
+                        "service=${service.serviceUuid}, char=${char.characteristicUuid}"
                     )
                     break@outer
                 }
@@ -94,6 +120,7 @@ class KableBleTransport : BleTransport {
             }
 
             _connectionState.value = ConnectionState.CONNECTED
+            println("[KableBleTransport] Connection established successfully")
         } catch (e: PrinterException) {
             _connectionState.value = ConnectionState.DISCONNECTED
             throw e
@@ -104,6 +131,7 @@ class KableBleTransport : BleTransport {
     }
 
     override suspend fun disconnect() {
+        println("[KableBleTransport] disconnect() called")
         _connectionState.value = ConnectionState.DISCONNECTING
         scope?.cancel()
         scope = null
@@ -113,11 +141,14 @@ class KableBleTransport : BleTransport {
         peripheral = null
         notifyCharacteristic = null
         _connectionState.value = ConnectionState.DISCONNECTED
+        println("[KableBleTransport] Disconnected")
     }
 
     override suspend fun sendCommand(packet: NiimbotPacket, timeoutMs: Long): NiimbotPacket {
         val p = peripheral ?: throw PrinterNotConnectedException()
         val char = notifyCharacteristic ?: throw PrinterNotConnectedException()
+
+        println("[KableBleTransport] sendCommand: type=0x${packet.type.toString(16)}, ${packet.toBytes().size} bytes, timeout=${timeoutMs}ms")
 
         return commandMutex.withLock {
             while (responseChannel.tryReceive().isSuccess) { }
@@ -140,6 +171,7 @@ class KableBleTransport : BleTransport {
         val p = peripheral ?: throw PrinterNotConnectedException()
         val char = notifyCharacteristic ?: throw PrinterNotConnectedException()
 
+        println("[KableBleTransport] writeRaw: ${packet.toBytes().size} bytes")
         p.write(char, packet.toBytes(), WriteType.WithoutResponse)
     }
 }

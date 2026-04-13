@@ -10,8 +10,27 @@ actual object TemplateStorage {
     private fun slugify(name: String): String =
         name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
 
+    private fun resolveFile(slug: String, templateName: String): File {
+        val base = File(dir, "$slug.json")
+        if (!base.exists()) return base
+        try {
+            val existing = json.decodeFromString(LabelTemplate.serializer(), base.readText())
+            if (existing.name == templateName) return base
+        } catch (_: Exception) { }
+        var suffix = 2
+        while (true) {
+            val candidate = File(dir, "$slug-$suffix.json")
+            if (!candidate.exists()) return candidate
+            try {
+                val existing = json.decodeFromString(LabelTemplate.serializer(), candidate.readText())
+                if (existing.name == templateName) return candidate
+            } catch (_: Exception) { }
+            suffix++
+        }
+    }
+
     actual fun save(template: LabelTemplate) {
-        val file = File(dir, "${slugify(template.name)}.json")
+        val file = resolveFile(slugify(template.name), template.name)
         file.writeText(json.encodeToString(LabelTemplate.serializer(), template))
     }
 
@@ -25,7 +44,16 @@ actual object TemplateStorage {
     }
 
     actual fun delete(name: String) {
-        val file = File(dir, "${slugify(name)}.json")
-        file.delete()
+        if (!dir.exists()) return
+        val files = dir.listFiles { f -> f.extension == "json" } ?: return
+        for (file in files) {
+            try {
+                val template = json.decodeFromString(LabelTemplate.serializer(), file.readText())
+                if (template.name == name) {
+                    file.delete()
+                    return
+                }
+            } catch (_: Exception) { }
+        }
     }
 }

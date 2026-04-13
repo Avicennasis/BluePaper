@@ -7,6 +7,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
@@ -207,16 +208,31 @@ private fun NumericField(
     modifier: Modifier = Modifier,
     onValueChange: (Float) -> Unit,
 ) {
-    var textValue by remember(value) { mutableStateOf(value.toInt().toString()) }
+    var isFocused by remember { mutableStateOf(false) }
+    var textValue by remember {
+        mutableStateOf(
+            if (value == value.toInt().toFloat()) value.toInt().toString() else value.toString(),
+        )
+    }
+
+    LaunchedEffect(value) {
+        if (!isFocused) {
+            textValue = if (value == value.toInt().toFloat()) value.toInt().toString() else value.toString()
+        }
+    }
 
     OutlinedTextField(
         value = textValue,
         onValueChange = { newText ->
             textValue = newText
-            newText.toFloatOrNull()?.let(onValueChange)
+            val parsed = newText.toFloatOrNull()
+            if (parsed != null) {
+                onValueChange(parsed)
+            }
+            // Don't reset if parse fails — user may be mid-typing "12." or "-"
         },
         label = { Text(label) },
-        modifier = modifier,
+        modifier = modifier.onFocusChanged { isFocused = it.isFocused },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         textStyle = MaterialTheme.typography.bodySmall,

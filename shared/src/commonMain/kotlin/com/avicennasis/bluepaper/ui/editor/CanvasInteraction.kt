@@ -3,6 +3,9 @@ package com.avicennasis.bluepaper.ui.editor
 import kotlin.math.min
 import kotlin.math.roundToInt
 
+// TODO: hitTest uses AABB and ignores element rotation.
+// For rotated elements, click targets may not align with visual bounds.
+// To fix: transform click coordinates by inverse rotation around element center.
 fun hitTest(elements: List<LabelElement>, labelX: Float, labelY: Float): LabelElement? {
     for (element in elements.asReversed()) {
         if (labelX >= element.x && labelX <= element.x + element.width &&
@@ -47,12 +50,14 @@ const val HANDLE_SIZE_DP = 6f
 const val MIN_ELEMENT_SIZE = 10f
 const val DEFAULT_GRID_SIZE = 8f
 
+// Note: hitTestHandle is not yet wired to pointer input handlers. Resize handles are drawn visually but not interactive.
 enum class ResizeHandle {
     TOP_LEFT, TOP, TOP_RIGHT,
     LEFT, RIGHT,
     BOTTOM_LEFT, BOTTOM, BOTTOM_RIGHT,
 }
 
+// Note: hitTestHandle is not yet wired to pointer input handlers. Resize handles are drawn visually but not interactive.
 fun hitTestHandle(
     element: LabelElement,
     labelX: Float,

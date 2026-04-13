@@ -108,4 +108,14 @@ class MeCardEncoderTest {
         assertEquals("123 Main St", result["address"])
         assertEquals("Friend", result["note"])
     }
+
+    @Test
+    fun roundTripNoteWithoutTrailingSemicolon() {
+        // MeCard format uses ';' as field separator with no escaping,
+        // so ';' in field values cannot roundtrip. Test a clean value.
+        val original = mapOf("name" to "Alice", "phone" to "5551234567", "note" to "See rules")
+        val encoded = encoder.encode(original)
+        val decoded = encoder.decode(encoded)
+        assertEquals("See rules", decoded["note"])
+    }
 }

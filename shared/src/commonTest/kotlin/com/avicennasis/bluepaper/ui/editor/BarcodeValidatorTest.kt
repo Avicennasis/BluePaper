@@ -18,4 +18,47 @@ class BarcodeValidatorTest {
     @Test fun code39RejectsInvalid() { assertFalse(BarcodeValidator.validate(BarcodeFormat.CODE_39, "hello@world").isValid) }
     @Test fun codabarFix() { val r = BarcodeValidator.autoFix(BarcodeFormat.CODABAR, "12345"); assertTrue(r.startsWith("A") && r.endsWith("A")) }
     @Test fun emptyIsInvalid() { assertFalse(BarcodeValidator.validate(BarcodeFormat.CODE_128, "").isValid) }
+
+    // Length validation tests
+    @Test fun ean13RejectsWrongLength() {
+        assertFalse(BarcodeValidator.validate(BarcodeFormat.EAN_13, "12345").isValid)
+    }
+    @Test fun ean8RejectsWrongLength() {
+        assertFalse(BarcodeValidator.validate(BarcodeFormat.EAN_8, "1234").isValid)
+    }
+    @Test fun upcARejectsWrongLength() {
+        assertFalse(BarcodeValidator.validate(BarcodeFormat.UPC_A, "12345").isValid)
+    }
+    @Test fun upcERejectsWrongLength() {
+        assertFalse(BarcodeValidator.validate(BarcodeFormat.UPC_E, "1234").isValid)
+    }
+    @Test fun itfRejectsOddLength() {
+        assertFalse(BarcodeValidator.validate(BarcodeFormat.ITF, "123").isValid)
+    }
+
+    // UPC-E autoFix tests
+    @Test fun upcEAutoFixProducesValidCheckDigit() {
+        val fixed = BarcodeValidator.autoFix(BarcodeFormat.UPC_E, "0123456")
+        assertEquals(8, fixed.length)
+        assertTrue(BarcodeValidator.validate(BarcodeFormat.UPC_E, fixed).isValid)
+    }
+
+    // RSS-14 autoFix test
+    @Test fun rss14AutoFixProduces14Digits() {
+        val fixed = BarcodeValidator.autoFix(BarcodeFormat.RSS_14, "123456789012")
+        assertEquals(14, fixed.length)
+        assertTrue(fixed.all { it.isDigit() })
+    }
+
+    // ITF empty input test
+    @Test fun itfAutoFixEmptyInput() {
+        val fixed = BarcodeValidator.autoFix(BarcodeFormat.ITF, "")
+        assertTrue(fixed.length >= 2)
+        assertTrue(fixed.length % 2 == 0)
+    }
+
+    // Check digit validation
+    @Test fun ean13AcceptsCorrectCheckDigit() {
+        assertTrue(BarcodeValidator.validate(BarcodeFormat.EAN_13, "5901234123457").isValid)
+    }
 }
