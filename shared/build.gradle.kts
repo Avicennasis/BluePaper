@@ -53,7 +53,7 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 implementation("com.google.zxing:core:3.5.3")
                 implementation(libs.dbus.java.core)
-                implementation(libs.dbus.java.transport.native.unixsocket)
+                implementation(libs.dbus.java.transport.jnr.unixsocket)
                 runtimeOnly(libs.slf4j.simple)
             }
         }
@@ -81,5 +81,12 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("androidx.core:core:1.15.0")
+        force("androidx.core:core-ktx:1.15.0")
     }
 }
