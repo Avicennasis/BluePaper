@@ -44,17 +44,26 @@ object LabelRenderer {
             stride = width,
         )
 
-        // Debug: check how many non-white pixels we have
-        var nonWhiteCount = 0
-        var nonZeroCount = 0
+        // Debug: check pixel values
+        var transparentCount = 0  // alpha = 0
+        var whiteCount = 0        // 0xFFFFFFFF
+        var blackCount = 0        // 0xFF000000
+        var otherCount = 0
         for (p in pixels) {
-            if (p != 0) nonZeroCount++
-            if (p != -1 && p != 0) nonWhiteCount++  // -1 is 0xFFFFFFFF (white in ARGB)
+            val alpha = (p.toUInt() shr 24).toInt()
+            if (alpha == 0) transparentCount++
+            else if (p == -1) whiteCount++  // 0xFFFFFFFF
+            else if (p == 0xFF000000.toInt()) blackCount++
+            else otherCount++
         }
-        println("[LabelRenderer] Canvas ${width}x${height}, pixels: total=${pixels.size}, nonZero=$nonZeroCount, nonWhite=$nonWhiteCount")
-        if (pixels.isNotEmpty()) {
-            val sample = pixels.take(10).joinToString { "0x${it.toUInt().toString(16)}" }
-            println("[LabelRenderer] First 10 pixels: $sample")
+        println("[LabelRenderer] Canvas ${width}x${height}, pixels: total=${pixels.size}")
+        println("[LabelRenderer]   transparent=$transparentCount, white=$whiteCount, black=$blackCount, other=$otherCount")
+        // Sample pixels from different regions
+        if (pixels.size > 100) {
+            val corner = pixels.take(5).joinToString { "0x${it.toUInt().toString(16)}" }
+            val mid = pixels.slice(pixels.size/2 until pixels.size/2 + 5).joinToString { "0x${it.toUInt().toString(16)}" }
+            println("[LabelRenderer] Corner pixels: $corner")
+            println("[LabelRenderer] Middle pixels: $mid")
         }
 
         val (rotatedPixels, rotatedWidth, rotatedHeight) =
