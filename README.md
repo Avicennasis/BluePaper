@@ -36,11 +36,11 @@ git clone https://github.com/avicennasis/BluePaper.git && cd BluePaper
 |----------|-----|--------------|-------|
 | Android | Full | Full | Kable BLE, requires Android 8.0+ |
 | macOS | Full | Full | Kable BLE (CoreBluetooth) |
-| Linux | Full | Not yet | Kable lacks BlueZ D-Bus support |
+| Linux | Full | Full | BlueZ D-Bus (requires BlueZ 5.x) |
 | Windows | Full | Not yet | Kable lacks WinRT support |
 | iOS | Full | Planned | Kable ready, needs UI integration |
 
-**Workaround for Linux/Windows**: Design labels on desktop, then transfer the `.bpl` file to an Android device for printing.
+**Workaround for Windows**: Design labels on desktop, then transfer the `.bpl` file to an Android device for printing.
 
 ## Supported Printers
 
@@ -91,7 +91,10 @@ cd BluePaper
 
 First run downloads Gradle and dependencies (~500MB). Subsequent runs are fast.
 
-**Note**: Desktop Linux BLE is not yet implemented (Kable library doesn't support Linux JVM). The UI works fully — you can design labels, use templates, add barcodes/images, and save `.bpl` files. To actually print, use Android.
+**Linux BLE requirements:**
+- BlueZ 5.x (pre-installed on most distros)
+- D-Bus system bus access
+- User must be in `bluetooth` group: `sudo usermod -aG bluetooth $USER` (then re-login)
 
 ### Print via Android
 
@@ -140,6 +143,8 @@ The app requests permissions on first launch with rationale dialogs.
 | Gradle download fails | Check internet, retry — Gradle wrapper handles versioning |
 | App won't start | Ensure X11/Wayland display is available |
 | Fonts look wrong | Install `fonts-noto` for full Unicode coverage |
+| BLE scan finds nothing | Ensure BlueZ is running: `systemctl status bluetooth` |
+| D-Bus permission denied | Add user to bluetooth group, re-login |
 
 ## Building
 
