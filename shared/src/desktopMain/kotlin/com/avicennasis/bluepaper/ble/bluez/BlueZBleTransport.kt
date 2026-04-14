@@ -15,8 +15,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
-import org.freedesktop.dbus.connections.impl.DBusConnection
-import org.freedesktop.dbus.connections.impl.DBusConnectionBuilder
 import org.freedesktop.dbus.handlers.AbstractPropertiesChangedHandler
 import org.freedesktop.dbus.interfaces.ObjectManager
 import org.freedesktop.dbus.interfaces.Properties
@@ -30,7 +28,6 @@ class BlueZBleTransport : BleTransport {
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     override val connectionState: StateFlow<ConnectionState> = _connectionState
 
-    private var connection: DBusConnection? = null
     private var device: Device1? = null
     private var characteristic: GattCharacteristic1? = null
     private var characteristicPath: String? = null
@@ -44,8 +41,7 @@ class BlueZBleTransport : BleTransport {
         responseChannel = Channel(Channel.UNLIMITED)
 
         try {
-            val conn = DBusConnectionBuilder.forSystemBus().build()
-            connection = conn
+            val conn = BlueZConnection.get()
 
             val devicePath = BlueZPaths.devicePath(BlueZPaths.ADAPTER_PATH, device.address)
             println("[BlueZBleTransport] Device path: $devicePath")
@@ -142,7 +138,7 @@ class BlueZBleTransport : BleTransport {
 
         notifyHandler?.let { handler ->
             try {
-                connection?.removeSigHandler(Properties.PropertiesChanged::class.java, handler)
+                BlueZConnection.get().removeSigHandler(Properties.PropertiesChanged::class.java, handler)
             } catch (_: Exception) { }
         }
 
@@ -150,14 +146,11 @@ class BlueZBleTransport : BleTransport {
             device?.Disconnect()
         } catch (_: Exception) { }
 
-        try {
-            connection?.close()
-        } catch (_: Exception) { }
+        // Don't close the shared connection
 
         device = null
         characteristic = null
         characteristicPath = null
-        connection = null
         notifyHandler = null
         responseChannel.close()
 

@@ -7,8 +7,6 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.withContext
-import org.freedesktop.dbus.connections.impl.DBusConnection
-import org.freedesktop.dbus.connections.impl.DBusConnectionBuilder
 import org.freedesktop.dbus.handlers.AbstractInterfacesAddedHandler
 import org.freedesktop.dbus.interfaces.ObjectManager
 import org.freedesktop.dbus.types.Variant
@@ -16,27 +14,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * BLE scanner implementation for Linux using BlueZ D-Bus API.
- * Uses a singleton connection to avoid D-Bus connection limits.
+ * Uses a shared connection to avoid D-Bus connection conflicts.
  */
 class BlueZBleScanner : BleScanner {
 
     companion object {
-        private var sharedConnection: DBusConnection? = null
-        private val connectionLock = Any()
         private val isScanning = AtomicBoolean(false)
-
-        private fun getConnection(): DBusConnection {
-            synchronized(connectionLock) {
-                var conn = sharedConnection
-                if (conn == null || !conn.isConnected) {
-                    println("[BlueZBleScanner] Creating new D-Bus connection...")
-                    conn = DBusConnectionBuilder.forSystemBus().build()
-                    sharedConnection = conn
-                    println("[BlueZBleScanner] D-Bus connection created")
-                }
-                return conn
-            }
-        }
     }
 
     override fun scan(namePrefix: String): Flow<ScannedDevice> = callbackFlow {
@@ -49,7 +32,7 @@ class BlueZBleScanner : BleScanner {
 
         println("[BlueZBleScanner] Starting scan for prefix: $namePrefix")
 
-        val connection = withContext(Dispatchers.IO) { getConnection() }
+        val connection = withContext(Dispatchers.IO) { BlueZConnection.get() }
         var handler: AbstractInterfacesAddedHandler? = null
         var adapter: Adapter1? = null
 
