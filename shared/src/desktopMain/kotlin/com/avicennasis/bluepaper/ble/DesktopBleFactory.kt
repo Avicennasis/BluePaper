@@ -1,7 +1,7 @@
 package com.avicennasis.bluepaper.ble
 
+import com.avicennasis.bluepaper.ble.bluez.BleakBleTransport
 import com.avicennasis.bluepaper.ble.bluez.BlueZBleScanner
-import com.avicennasis.bluepaper.ble.bluez.BlueZBleTransport
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +28,7 @@ object DesktopBleFactory {
 
     fun createTransport(): BleTransport {
         return when {
-            isLinux -> BlueZBleTransport()
+            isLinux -> BleakBleTransport()
             else -> StubBleTransport()
         }
     }
