@@ -76,7 +76,7 @@ class BlueZBleScanner : BleScanner {
                     rssi = rssi,
                     serviceUuids = uuids,
                 )
-                println("[BlueZBleScanner] Found existing device: $name ($address)")
+                println("[BlueZBleScanner] Found existing device: $name ($address) UUIDs=${uuids.size}")
                 trySend(device)
             }
 
