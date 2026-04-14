@@ -16,7 +16,11 @@ import org.freedesktop.dbus.types.Variant
 class BlueZBleScanner : BleScanner {
 
     override fun scan(namePrefix: String): Flow<ScannedDevice> = callbackFlow {
-        val connection = DBusConnectionBuilder.forSystemBus().build()
+        println("[BlueZBleScanner] Connecting to D-Bus system bus...")
+        val connection = DBusConnectionBuilder.forSystemBus()
+            .withShared(false)  // Don't share connection across threads
+            .build()
+        println("[BlueZBleScanner] D-Bus connection established")
 
         try {
             val adapter = connection.getRemoteObject(
@@ -106,7 +110,8 @@ class BlueZBleScanner : BleScanner {
             }
         } catch (e: Exception) {
             println("[BlueZBleScanner] Error: ${e.message}")
-            connection.close()
+            e.printStackTrace()
+            try { connection.close() } catch (_: Exception) {}
             throw e
         }
     }
