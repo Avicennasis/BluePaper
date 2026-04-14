@@ -44,8 +44,23 @@ object LabelRenderer {
             stride = width,
         )
 
+        // Debug: check how many non-white pixels we have
+        var nonWhiteCount = 0
+        var nonZeroCount = 0
+        for (p in pixels) {
+            if (p != 0) nonZeroCount++
+            if (p != -1 && p != 0) nonWhiteCount++  // -1 is 0xFFFFFFFF (white in ARGB)
+        }
+        println("[LabelRenderer] Canvas ${width}x${height}, pixels: total=${pixels.size}, nonZero=$nonZeroCount, nonWhite=$nonWhiteCount")
+        if (pixels.isNotEmpty()) {
+            val sample = pixels.take(10).joinToString { "0x${it.toUInt().toString(16)}" }
+            println("[LabelRenderer] First 10 pixels: $sample")
+        }
+
         val (rotatedPixels, rotatedWidth, rotatedHeight) =
             MonochromeEncoder.rotatePixels(pixels, width, height, rotationDegrees)
+
+        println("[LabelRenderer] After rotation: ${rotatedWidth}x${rotatedHeight}")
 
         return MonochromeEncoder.encode(rotatedPixels, rotatedWidth, rotatedHeight, horizontalOffset, verticalOffset)
     }
