@@ -8,12 +8,14 @@ import com.avicennasis.bluepaper.printer.PrinterNotConnectedException
 import com.avicennasis.bluepaper.printer.PrinterProtocolException
 import com.avicennasis.bluepaper.printer.PrinterTimeoutException
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.freedesktop.dbus.handlers.AbstractPropertiesChangedHandler
 import org.freedesktop.dbus.interfaces.ObjectManager
@@ -54,11 +56,15 @@ class BlueZBleTransport : BleTransport {
             this.device = bluezDevice
 
             // Connect to the device
-            bluezDevice.Connect()
+            withContext(Dispatchers.IO) {
+                bluezDevice.Connect()
+            }
             println("[BlueZBleTransport] Connected to device, discovering services...")
 
             // Wait briefly for services to be discovered
-            Thread.sleep(2000)
+            withContext(Dispatchers.IO) {
+                Thread.sleep(2000)
+            }
 
             // Find the GATT characteristic for Niimbot printer
             val objectManager = conn.getRemoteObject(
@@ -67,7 +73,9 @@ class BlueZBleTransport : BleTransport {
                 ObjectManager::class.java
             )
 
-            val objects = objectManager.GetManagedObjects()
+            val objects = withContext(Dispatchers.IO) {
+                objectManager.GetManagedObjects()
+            }
             var foundCharPath: String? = null
 
             for ((path, interfaces) in objects) {
@@ -113,7 +121,9 @@ class BlueZBleTransport : BleTransport {
             conn.addSigHandler(Properties.PropertiesChanged::class.java, notifyHandler)
 
             // Start notifications
-            gattChar.StartNotify()
+            withContext(Dispatchers.IO) {
+                gattChar.StartNotify()
+            }
             println("[BlueZBleTransport] Started notifications")
 
             _connectionState.value = ConnectionState.CONNECTED
@@ -159,7 +169,8 @@ class BlueZBleTransport : BleTransport {
     }
 
     override suspend fun sendCommand(packet: NiimbotPacket, timeoutMs: Long): NiimbotPacket {
-        println("[BlueZBleTransport] sendCommand: type=0x${packet.type.toString(16)}, ${packet.toBytes().size} bytes")
+        val data = packet.toBytes()
+        println("[BlueZBleTransport] sendCommand: type=0x${packet.type.toString(16)}, ${data.size} bytes, data=${data.joinToString(" ") { "%02x".format(it) }}")
 
         return commandMutex.withLock {
             val char = characteristic ?: throw PrinterNotConnectedException()
@@ -167,8 +178,20 @@ class BlueZBleTransport : BleTransport {
             // Clear any stale responses
             while (responseChannel.tryReceive().isSuccess) { }
 
-            // Write the command
-            char.WriteValue(packet.toBytes(), emptyMap())
+            // Write the command with options
+            val options = mapOf<String, Variant<*>>(
+                "type" to Variant("command"),
+            )
+            try {
+                withContext(Dispatchers.IO) {
+                    char.WriteValue(data, options)
+                }
+                println("[BlueZBleTransport] WriteValue completed")
+            } catch (e: Exception) {
+                println("[BlueZBleTransport] WriteValue failed: ${e.message}")
+                e.printStackTrace()
+                throw PrinterException("Write failed: ${e.message}", e)
+            }
 
             // Wait for response
             val responseData = try {
@@ -186,10 +209,16 @@ class BlueZBleTransport : BleTransport {
     }
 
     override suspend fun writeRaw(packet: NiimbotPacket) {
-        println("[BlueZBleTransport] writeRaw: ${packet.toBytes().size} bytes")
+        val data = packet.toBytes()
+        println("[BlueZBleTransport] writeRaw: ${data.size} bytes")
         commandMutex.withLock {
             val char = characteristic ?: throw PrinterNotConnectedException()
-            char.WriteValue(packet.toBytes(), emptyMap())
+            val options = mapOf<String, Variant<*>>(
+                "type" to Variant("command"),
+            )
+            withContext(Dispatchers.IO) {
+                char.WriteValue(data, options)
+            }
         }
     }
 }
