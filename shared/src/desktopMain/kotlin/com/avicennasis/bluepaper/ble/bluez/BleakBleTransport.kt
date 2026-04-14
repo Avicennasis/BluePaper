@@ -190,11 +190,11 @@ class BleakBleTransport : BleTransport {
     override suspend fun writeRaw(packet: NiimbotPacket) {
         val data = packet.toBytes()
         val hexData = data.joinToString("") { "%02x".format(it) }
-        println("[BleakBleTransport] writeRaw: $hexData")
 
         val cmd = buildJsonObject {
             put("cmd", "write")
             put("data", hexData)
+            put("wait", false)  // Don't wait for response on raw writes
         }
 
         commandMutex.withLock { sendCommand(cmd) }

@@ -60,7 +60,7 @@ async def do_connect(address: str):
         client = None
 
 
-async def do_write(hex_data: str):
+async def do_write(hex_data: str, wait_response: bool = True):
     global response_data
     if not client or not client.is_connected:
         respond({"error": "not connected"})
@@ -68,10 +68,16 @@ async def do_write(hex_data: str):
 
     try:
         data = bytes.fromhex(hex_data.replace(" ", ""))
-        response_event.clear()
-        response_data = None
+
+        if wait_response:
+            response_event.clear()
+            response_data = None
 
         await client.write_gatt_char(CHAR_UUID, data, response=False)
+
+        if not wait_response:
+            respond({"ok": True})
+            return
 
         # Wait for response
         try:
@@ -119,7 +125,8 @@ async def process_command(line: str):
         if not data:
             respond({"error": "data required"})
         else:
-            await do_write(data)
+            wait = cmd.get("wait", True)
+            await do_write(data, wait_response=wait)
     elif action == "disconnect":
         await do_disconnect()
     elif action == "quit":
