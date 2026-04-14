@@ -1,5 +1,6 @@
 package com.avicennasis.bluepaper.ble.bluez
 
+import org.freedesktop.dbus.annotations.DBusInterfaceName
 import org.freedesktop.dbus.interfaces.DBusInterface
 import org.freedesktop.dbus.interfaces.Properties
 import org.freedesktop.dbus.types.Variant
@@ -10,6 +11,7 @@ import org.freedesktop.dbus.types.Variant
  */
 
 /** org.bluez.Adapter1 - Bluetooth adapter interface */
+@DBusInterfaceName("org.bluez.Adapter1")
 interface Adapter1 : DBusInterface {
     fun StartDiscovery()
     fun StopDiscovery()
@@ -17,17 +19,20 @@ interface Adapter1 : DBusInterface {
 }
 
 /** org.bluez.Device1 - Bluetooth device interface */
+@DBusInterfaceName("org.bluez.Device1")
 interface Device1 : DBusInterface {
     fun Connect()
     fun Disconnect()
 }
 
 /** org.bluez.GattService1 - GATT service interface */
+@DBusInterfaceName("org.bluez.GattService1")
 interface GattService1 : DBusInterface {
     // Properties accessed via org.freedesktop.DBus.Properties
 }
 
 /** org.bluez.GattCharacteristic1 - GATT characteristic interface */
+@DBusInterfaceName("org.bluez.GattCharacteristic1")
 interface GattCharacteristic1 : DBusInterface {
     fun ReadValue(options: Map<String, Variant<*>>): ByteArray
     fun WriteValue(value: ByteArray, options: Map<String, Variant<*>>)
