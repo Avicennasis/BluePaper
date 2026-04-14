@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
 BLE Bridge for BluePaper - uses Bleak for reliable BLE communication.
-Called as subprocess from Kotlin.
+Runs as persistent process, reads commands from stdin, writes responses to stdout.
 
-Usage:
-  python3 ble_bridge.py scan <prefix>
-  python3 ble_bridge.py connect <address>
-  python3 ble_bridge.py write <hex_data>
-  python3 ble_bridge.py read
-  python3 ble_bridge.py disconnect
+Commands (one per line, JSON):
+  {"cmd": "connect", "address": "XX:XX:XX:XX:XX:XX"}
+  {"cmd": "write", "data": "hex_string"}
+  {"cmd": "disconnect"}
+  {"cmd": "quit"}
 """
 
 import asyncio
@@ -20,7 +19,7 @@ try:
     from bleak import BleakClient, BleakScanner
     from bleak.exc import BleakError
 except ImportError:
-    print(json.dumps({"error": "bleak not installed. Run: pip install bleak"}))
+    print(json.dumps({"error": "bleak not installed. Run: pip install bleak"}), flush=True)
     sys.exit(1)
 
 # Niimbot characteristic UUID
@@ -37,39 +36,34 @@ def notification_handler(sender, data: bytearray):
     response_event.set()
 
 
-async def scan(prefix: str):
-    devices = await BleakScanner.discover(timeout=5.0, return_adv=True)
-    results = []
-    for device, adv_data in devices.values():
-        if device.name and device.name.lower().startswith(prefix.lower()):
-            results.append({
-                "name": device.name,
-                "address": device.address,
-                "rssi": adv_data.rssi if adv_data else -100,
-                "uuids": len(adv_data.service_uuids) if adv_data else 0,
-            })
-    # Prefer device with fewer UUIDs for D110
-    if prefix.lower().startswith("d110"):
-        results.sort(key=lambda x: x["uuids"])
-    print(json.dumps({"devices": results}))
+def respond(obj: dict):
+    print(json.dumps(obj), flush=True)
 
 
-async def connect(address: str):
+async def do_connect(address: str):
     global client
     try:
+        if client:
+            try:
+                await client.disconnect()
+            except:
+                pass
         client = BleakClient(address)
         await client.connect(timeout=10.0)
         await client.start_notify(CHAR_UUID, notification_handler)
-        print(json.dumps({"connected": True, "address": address}))
+        respond({"connected": True, "address": address})
     except BleakError as e:
-        print(json.dumps({"error": str(e)}))
+        respond({"error": str(e)})
+        client = None
+    except Exception as e:
+        respond({"error": str(e)})
         client = None
 
 
-async def write(hex_data: str):
+async def do_write(hex_data: str):
     global response_data
     if not client or not client.is_connected:
-        print(json.dumps({"error": "not connected"}))
+        respond({"error": "not connected"})
         return
 
     try:
@@ -83,16 +77,18 @@ async def write(hex_data: str):
         try:
             await asyncio.wait_for(response_event.wait(), timeout=5.0)
             if response_data:
-                print(json.dumps({"response": response_data.hex()}))
+                respond({"response": response_data.hex()})
             else:
-                print(json.dumps({"error": "no response"}))
+                respond({"error": "no response"})
         except asyncio.TimeoutError:
-            print(json.dumps({"error": "timeout"}))
+            respond({"error": "timeout"})
     except BleakError as e:
-        print(json.dumps({"error": str(e)}))
+        respond({"error": str(e)})
+    except Exception as e:
+        respond({"error": str(e)})
 
 
-async def disconnect():
+async def do_disconnect():
     global client
     if client:
         try:
@@ -100,33 +96,66 @@ async def disconnect():
         except:
             pass
         client = None
-    print(json.dumps({"disconnected": True}))
+    respond({"disconnected": True})
+
+
+async def process_command(line: str):
+    try:
+        cmd = json.loads(line)
+    except json.JSONDecodeError:
+        respond({"error": "invalid JSON"})
+        return True
+
+    action = cmd.get("cmd", "")
+
+    if action == "connect":
+        address = cmd.get("address")
+        if not address:
+            respond({"error": "address required"})
+        else:
+            await do_connect(address)
+    elif action == "write":
+        data = cmd.get("data")
+        if not data:
+            respond({"error": "data required"})
+        else:
+            await do_write(data)
+    elif action == "disconnect":
+        await do_disconnect()
+    elif action == "quit":
+        await do_disconnect()
+        return False
+    elif action == "ping":
+        respond({"pong": True})
+    else:
+        respond({"error": f"unknown command: {action}"})
+
+    return True
 
 
 async def main():
-    if len(sys.argv) < 2:
-        print(json.dumps({"error": "usage: ble_bridge.py <command> [args]"}))
-        return
+    respond({"ready": True})
 
-    cmd = sys.argv[1]
+    loop = asyncio.get_event_loop()
+    reader = asyncio.StreamReader()
+    protocol = asyncio.StreamReaderProtocol(reader)
+    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
 
-    if cmd == "scan":
-        prefix = sys.argv[2] if len(sys.argv) > 2 else "D11"
-        await scan(prefix)
-    elif cmd == "connect":
-        if len(sys.argv) < 3:
-            print(json.dumps({"error": "address required"}))
-            return
-        await connect(sys.argv[2])
-    elif cmd == "write":
-        if len(sys.argv) < 3:
-            print(json.dumps({"error": "hex data required"}))
-            return
-        await write(sys.argv[2])
-    elif cmd == "disconnect":
-        await disconnect()
-    else:
-        print(json.dumps({"error": f"unknown command: {cmd}"}))
+    while True:
+        try:
+            line = await reader.readline()
+            if not line:
+                break
+            line = line.decode().strip()
+            if not line:
+                continue
+            if not await process_command(line):
+                break
+        except Exception as e:
+            respond({"error": str(e)})
+            break
+
+    await do_disconnect()
 
 
 if __name__ == "__main__":
