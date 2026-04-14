@@ -6,12 +6,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 
 @Composable
-actual fun ImagePickerButton(onImageLoaded: (ImageBitmap) -> Unit) {
+actual fun ImagePickerButton(
+    onImageLoaded: (ImageBitmap) -> Unit,
+    modifier: Modifier,
+) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -26,7 +30,10 @@ actual fun ImagePickerButton(onImageLoaded: (ImageBitmap) -> Unit) {
         }
     }
 
-    OutlinedButton(onClick = { launcher.launch(arrayOf("image/*")) }) {
+    OutlinedButton(
+        onClick = { launcher.launch(arrayOf("image/*")) },
+        modifier = modifier,
+    ) {
         Text("+ Image")
     }
 }

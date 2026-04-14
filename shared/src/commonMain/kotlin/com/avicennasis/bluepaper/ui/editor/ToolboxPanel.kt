@@ -40,14 +40,17 @@ fun ToolboxPanel(
     ) {
         Text("Elements", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            OutlinedButton(onClick = onAddText, modifier = Modifier.weight(1f)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            OutlinedButton(onClick = onAddText, modifier = Modifier.fillMaxWidth()) {
                 Text("+ Text")
             }
-            ImagePickerButton(onImageLoaded = onAddImage)
-        }
-        OutlinedButton(onClick = onAddBarcode, modifier = Modifier.fillMaxWidth()) {
-            Text("+ Barcode")
+            ImagePickerButton(
+                onImageLoaded = onAddImage,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedButton(onClick = onAddBarcode, modifier = Modifier.fillMaxWidth()) {
+                Text("+ Barcode")
+            }
         }
 
         Spacer(Modifier.height(8.dp))
