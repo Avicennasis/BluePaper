@@ -7,6 +7,7 @@ kable = "0.42.0"
 serialization = "1.7.3"
 activity-compose = "1.9.3"
 core-ktx = "1.15.0"
+dbus-java = "3.3.1"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -15,6 +16,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kable-core = { module = "com.juul.kable:kable-core", version.ref = "kable" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
+dbus-java = { module = "com.github.hypfvieh:dbus-java", version.ref = "dbus-java" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

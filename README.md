@@ -2,6 +2,13 @@
 
 Cross-platform Bluetooth label printer app built with Kotlin Multiplatform and Compose Multiplatform.
 
+**Quick start (Linux)**:
+```bash
+sudo apt install openjdk-17-jdk
+git clone https://github.com/avicennasis/BluePaper.git && cd BluePaper
+./gradlew :desktopApp:run
+```
+
 ## Features
 
 - **8 Niimbot printer models** — D11, D11-H, D101, D110, D110-M, B1, B18, B21
@@ -25,11 +32,15 @@ Cross-platform Bluetooth label printer app built with Kotlin Multiplatform and C
 
 ## Supported Platforms
 
-- Android (BLE via Kable)
-- iOS (planned)
-- Linux (desktop UI, BLE pending)
-- macOS (desktop UI, BLE via Kable)
-- Windows (desktop UI, BLE pending)
+| Platform | UI | BLE Printing | Notes |
+|----------|-----|--------------|-------|
+| Android | Full | Full | Kable BLE, requires Android 8.0+ |
+| macOS | Full | Full | Kable BLE (CoreBluetooth) |
+| Linux | Full | Not yet | Kable lacks BlueZ D-Bus support |
+| Windows | Full | Not yet | Kable lacks WinRT support |
+| iOS | Full | Planned | Kable ready, needs UI integration |
+
+**Workaround for Linux/Windows**: Design labels on desktop, then transfer the `.bpl` file to an Android device for printing.
 
 ## Supported Printers
 
@@ -51,6 +62,84 @@ Label Elements → Compose Canvas → ImageBitmap.readPixels() → MonochromeEnc
 → packed 1-bit rows → PrinterClient.print() → CommandBuilder → NiimbotPackets
 → BleTransport.sendCommand() / writeRaw() → Kable → BLE GATT → Printer
 ```
+
+## Installation (Linux)
+
+### Prerequisites
+
+```bash
+# Ubuntu/Debian
+sudo apt install openjdk-17-jdk
+
+# Fedora
+sudo dnf install java-17-openjdk-devel
+
+# Arch
+sudo pacman -S jdk17-openjdk
+
+# Verify
+java -version  # Should show 17.x
+```
+
+### Run the Desktop App (UI only)
+
+```bash
+git clone https://github.com/avicennasis/BluePaper.git
+cd BluePaper
+./gradlew :desktopApp:run
+```
+
+First run downloads Gradle and dependencies (~500MB). Subsequent runs are fast.
+
+**Note**: Desktop Linux BLE is not yet implemented (Kable library doesn't support Linux JVM). The UI works fully — you can design labels, use templates, add barcodes/images, and save `.bpl` files. To actually print, use Android.
+
+### Print via Android
+
+For Bluetooth printing, build and install the Android APK:
+
+```bash
+# Build debug APK
+./gradlew :androidApp:assembleDebug
+
+# APK location
+ls -la androidApp/build/outputs/apk/debug/androidApp-debug.apk
+
+# Install via ADB (if device connected)
+adb install androidApp/build/outputs/apk/debug/androidApp-debug.apk
+```
+
+**Android requirements**:
+- Android 8.0+ (API 26)
+- Bluetooth LE support
+- Location permission (required for BLE scanning on Android 8-11)
+- Bluetooth permissions (Android 12+)
+
+The app requests permissions on first launch with rationale dialogs.
+
+### Development Setup
+
+```bash
+# Run all tests (348 tests)
+./gradlew :shared:desktopTest
+
+# Run with debug output
+./gradlew :desktopApp:run --info
+
+# Clean build
+./gradlew clean :desktopApp:run
+
+# Check compilation without running
+./gradlew :shared:compileKotlinDesktop
+```
+
+### Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| `JAVA_HOME not set` | `export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64` |
+| Gradle download fails | Check internet, retry — Gradle wrapper handles versioning |
+| App won't start | Ensure X11/Wayland display is available |
+| Fonts look wrong | Install `fonts-noto` for full Unicode coverage |
 
 ## Building
 
