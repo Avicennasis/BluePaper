@@ -18,7 +18,7 @@ class BlueZBleTransportTest {
 
         val transport = DesktopBleFactory.createTransport()
         assertNotNull(transport)
-        assertTrue(transport is BlueZBleTransport)
+        assertTrue(transport is BleakBleTransport)
     }
 
     @Test
