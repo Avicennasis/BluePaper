@@ -1,5 +1,11 @@
 # BluePaper
 
+[![CI](https://github.com/Avicennasis/BluePaper/actions/workflows/test.yml/badge.svg)](https://github.com/Avicennasis/BluePaper/actions/workflows/test.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Avicennasis/BluePaper/badge)](https://scorecard.dev/viewer/?uri=github.com/Avicennasis/BluePaper)
+[![Release](https://img.shields.io/github/v/release/Avicennasis/BluePaper?display_name=tag)](https://github.com/Avicennasis/BluePaper/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 Cross-platform Bluetooth label printer app built with Kotlin Multiplatform and Compose Multiplatform.
 
 **Quick start (Linux)**:
