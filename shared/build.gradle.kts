@@ -42,7 +42,7 @@ kotlin {
 
         val androidMain by getting {
             dependencies {
-                implementation("com.google.zxing:core:3.5.3")
+                implementation("com.google.zxing:core:3.5.4")
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.core.ktx)
             }
@@ -51,7 +51,7 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
-                implementation("com.google.zxing:core:3.5.3")
+                implementation("com.google.zxing:core:3.5.4")
                 implementation(libs.dbus.java.core)
                 implementation(libs.dbus.java.transport.jnr.unixsocket)
                 runtimeOnly(libs.slf4j.simple)
@@ -86,7 +86,7 @@ android {
 
 configurations.all {
     resolutionStrategy {
-        force("androidx.core:core:1.15.0")
-        force("androidx.core:core-ktx:1.15.0")
+        force("androidx.core:core:1.18.0")
+        force("androidx.core:core-ktx:1.18.0")
     }
 }
