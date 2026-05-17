@@ -41,5 +41,19 @@ configurations.all {
     resolutionStrategy {
         force("androidx.core:core:1.15.0")
         force("androidx.core:core-ktx:1.15.0")
+        force(
+            "io.netty:netty-codec-http2:4.1.133.Final",
+            "io.netty:netty-codec-http:4.1.133.Final",
+            "io.netty:netty-codec:4.1.133.Final",
+            "io.netty:netty-common:4.1.133.Final",
+            "io.netty:netty-handler:4.1.133.Final",
+            "io.netty:netty-handler-proxy:4.1.133.Final",
+            "com.google.protobuf:protobuf-java:3.25.5",
+            "org.bouncycastle:bcprov-jdk18on:1.84",
+            "org.bouncycastle:bcpkix-jdk18on:1.84",
+            "org.bitbucket.b_c:jose4j:0.9.6",
+            "org.jdom:jdom2:2.0.6.1",
+            "commons-io:commons-io:2.14.0",
+        )
     }
 }
