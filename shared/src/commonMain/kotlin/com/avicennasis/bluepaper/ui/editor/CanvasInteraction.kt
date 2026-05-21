@@ -57,14 +57,12 @@ const val HANDLE_SIZE_DP = 6f
 const val MIN_ELEMENT_SIZE = 10f
 const val DEFAULT_GRID_SIZE = 8f
 
-// Note: hitTestHandle is not yet wired to pointer input handlers. Resize handles are drawn visually but not interactive.
 enum class ResizeHandle {
     TOP_LEFT, TOP, TOP_RIGHT,
     LEFT, RIGHT,
     BOTTOM_LEFT, BOTTOM, BOTTOM_RIGHT,
 }
 
-// Note: hitTestHandle is not yet wired to pointer input handlers. Resize handles are drawn visually but not interactive.
 fun hitTestHandle(
     element: LabelElement,
     labelX: Float,
@@ -72,10 +70,13 @@ fun hitTestHandle(
     handleSizeLabel: Float,
 ): ResizeHandle? {
     val hs = handleSizeLabel / 2f
-    val cx = element.x + element.width / 2f
-    val cy = element.y + element.height / 2f
-    val r = element.x + element.width
-    val b = element.y + element.height
+    val elScale = if (element is LabelElement.ImageElement) element.scale else 1f
+    val w = element.width * elScale
+    val h = element.height * elScale
+    val cx = element.x + w / 2f
+    val cy = element.y + h / 2f
+    val r = element.x + w
+    val b = element.y + h
 
     data class HandleDef(val hx: Float, val hy: Float, val handle: ResizeHandle)
 
@@ -96,4 +97,53 @@ fun hitTestHandle(
         }
     }
     return null
+}
+
+data class ElementBounds(val x: Float, val y: Float, val width: Float, val height: Float)
+
+fun applyResize(
+    element: LabelElement,
+    handle: ResizeHandle,
+    dx: Float,
+    dy: Float,
+    gridSize: Float,
+): ElementBounds {
+    val elScale = if (element is LabelElement.ImageElement) element.scale else 1f
+    var x = element.x
+    var y = element.y
+    var w = element.width * elScale
+    var h = element.height * elScale
+
+    when (handle) {
+        ResizeHandle.TOP_LEFT -> { x += dx; y += dy; w -= dx; h -= dy }
+        ResizeHandle.TOP -> { y += dy; h -= dy }
+        ResizeHandle.TOP_RIGHT -> { w += dx; y += dy; h -= dy }
+        ResizeHandle.LEFT -> { x += dx; w -= dx }
+        ResizeHandle.RIGHT -> { w += dx }
+        ResizeHandle.BOTTOM_LEFT -> { x += dx; w -= dx; h += dy }
+        ResizeHandle.BOTTOM -> { h += dy }
+        ResizeHandle.BOTTOM_RIGHT -> { w += dx; h += dy }
+    }
+
+    if (w < MIN_ELEMENT_SIZE) {
+        if (handle == ResizeHandle.TOP_LEFT || handle == ResizeHandle.LEFT || handle == ResizeHandle.BOTTOM_LEFT) {
+            x = element.x + element.width * elScale - MIN_ELEMENT_SIZE
+        }
+        w = MIN_ELEMENT_SIZE
+    }
+    if (h < MIN_ELEMENT_SIZE) {
+        if (handle == ResizeHandle.TOP_LEFT || handle == ResizeHandle.TOP || handle == ResizeHandle.TOP_RIGHT) {
+            y = element.y + element.height * elScale - MIN_ELEMENT_SIZE
+        }
+        h = MIN_ELEMENT_SIZE
+    }
+
+    if (gridSize > 0f) {
+        x = snapToGrid(x, gridSize)
+        y = snapToGrid(y, gridSize)
+        w = snapToGrid(w, gridSize).coerceAtLeast(MIN_ELEMENT_SIZE)
+        h = snapToGrid(h, gridSize).coerceAtLeast(MIN_ELEMENT_SIZE)
+    }
+
+    return ElementBounds(x, y, w / elScale, h / elScale)
 }

@@ -2,6 +2,7 @@ package com.avicennasis.bluepaper.ui.editor
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class CanvasInteractionTest {
@@ -61,5 +62,78 @@ class CanvasInteractionTest {
         val (lx, ly) = screenToLabel(200f, 100f, canvasWidth = 600f, canvasHeight = 200f, labelWidth = 200, labelHeight = 100)
         assertEquals(100f, lx)
         assertEquals(50f, ly)
+    }
+
+    private val textEl = LabelElement.TextElement(id = "r1", x = 50f, y = 50f, width = 100f, height = 60f)
+
+    @Test
+    fun hitTestHandleDetectsBottomRight() {
+        val handle = hitTestHandle(textEl, 150f, 110f, 12f)
+        assertEquals(ResizeHandle.BOTTOM_RIGHT, handle)
+    }
+
+    @Test
+    fun hitTestHandleDetectsTopLeft() {
+        val handle = hitTestHandle(textEl, 50f, 50f, 12f)
+        assertEquals(ResizeHandle.TOP_LEFT, handle)
+    }
+
+    @Test
+    fun hitTestHandleMissReturnsNull() {
+        val handle = hitTestHandle(textEl, 100f, 80f, 12f)
+        assertNull(handle)
+    }
+
+    @Test
+    fun hitTestHandleDetectsMiddleHandles() {
+        assertEquals(ResizeHandle.TOP, hitTestHandle(textEl, 100f, 50f, 12f))
+        assertEquals(ResizeHandle.BOTTOM, hitTestHandle(textEl, 100f, 110f, 12f))
+        assertEquals(ResizeHandle.LEFT, hitTestHandle(textEl, 50f, 80f, 12f))
+        assertEquals(ResizeHandle.RIGHT, hitTestHandle(textEl, 150f, 80f, 12f))
+    }
+
+    @Test
+    fun applyResizeBottomRight() {
+        val b = applyResize(textEl, ResizeHandle.BOTTOM_RIGHT, 20f, 10f, 0f)
+        assertEquals(50f, b.x)
+        assertEquals(50f, b.y)
+        assertEquals(120f, b.width)
+        assertEquals(70f, b.height)
+    }
+
+    @Test
+    fun applyResizeTopLeft() {
+        val b = applyResize(textEl, ResizeHandle.TOP_LEFT, 10f, 5f, 0f)
+        assertEquals(60f, b.x)
+        assertEquals(55f, b.y)
+        assertEquals(90f, b.width)
+        assertEquals(55f, b.height)
+    }
+
+    @Test
+    fun applyResizeEnforcesMinimumSize() {
+        val b = applyResize(textEl, ResizeHandle.BOTTOM_RIGHT, -200f, -200f, 0f)
+        assertEquals(50f, b.x)
+        assertEquals(50f, b.y)
+        assertEquals(MIN_ELEMENT_SIZE, b.width)
+        assertEquals(MIN_ELEMENT_SIZE, b.height)
+    }
+
+    @Test
+    fun applyResizeTopLeftClampsPosition() {
+        val b = applyResize(textEl, ResizeHandle.TOP_LEFT, 200f, 200f, 0f)
+        assertEquals(50f + 100f - MIN_ELEMENT_SIZE, b.x)
+        assertEquals(50f + 60f - MIN_ELEMENT_SIZE, b.y)
+        assertEquals(MIN_ELEMENT_SIZE, b.width)
+        assertEquals(MIN_ELEMENT_SIZE, b.height)
+    }
+
+    @Test
+    fun applyResizeWithGridSnap() {
+        val b = applyResize(textEl, ResizeHandle.BOTTOM_RIGHT, 5f, 3f, 8f)
+        assertEquals(48f, b.x)
+        assertEquals(48f, b.y)
+        assertEquals(104f, b.width)
+        assertEquals(64f, b.height)
     }
 }

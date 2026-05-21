@@ -180,6 +180,21 @@ class EditorState(
 
     fun resizeElementDone(id: String) { finishInteraction("resize_$id") }
 
+    fun resizeElementFromHandle(id: String, x: Float, y: Float, width: Float, height: Float) {
+        saveUndoSnapshotIfNeeded("resize_$id")
+        val w = width.coerceAtLeast(MIN_ELEMENT_SIZE)
+        val h = height.coerceAtLeast(MIN_ELEMENT_SIZE)
+        val labelSize = _selectedLabelSize.value
+        updateElement(id) { el ->
+            val resized = when (el) {
+                is LabelElement.TextElement -> el.copy(x = x, y = y, width = w, height = h)
+                is LabelElement.ImageElement -> el.copy(x = x, y = y, width = w, height = h)
+                is LabelElement.BarcodeElement -> el.copy(x = x, y = y, width = w, height = h)
+            }
+            clampToLabel(resized, labelSize.widthPx, labelSize.heightPx)
+        }
+    }
+
     fun setElementPosition(id: String, x: Float, y: Float, width: Float, height: Float) {
         saveUndoSnapshot()
         updateElement(id) { el ->

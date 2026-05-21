@@ -50,6 +50,7 @@ fun EditorScreen(
 
     val selectedElement = elements.find { it.id == selectedElementId }
     val focusRequester = remember { FocusRequester() }
+    var activeResizeHandle by remember { mutableStateOf<ResizeHandle?>(null) }
 
     val monochromeRows by produceState(
         initialValue = emptyList<ByteArray>(),
@@ -208,10 +209,34 @@ fun EditorScreen(
                                             focusRequester.requestFocus()
                                         }
                                     }
-                                    .pointerInput(elements) {
+                                    .pointerInput(elements, selectedElementId) {
                                         detectDragGestures(
+                                            onDragStart = { startOffset ->
+                                                val selId = selectedElementId
+                                                val selEl = if (selId != null) elements.find { it.id == selId } else null
+                                                if (selEl != null) {
+                                                    val (lx, ly) = screenToLabel(
+                                                        startOffset.x, startOffset.y,
+                                                        size.width.toFloat(), size.height.toFloat(),
+                                                        selectedLabelSize.widthPx, selectedLabelSize.heightPx,
+                                                    )
+                                                    val scaleFactor = kotlin.math.min(
+                                                        size.width.toFloat() / selectedLabelSize.widthPx,
+                                                        size.height.toFloat() / selectedLabelSize.heightPx,
+                                                    )
+                                                    val handleSizeLabel = HANDLE_SIZE_DP * 3f / scaleFactor
+                                                    activeResizeHandle = hitTestHandle(selEl, lx, ly, handleSizeLabel)
+                                                } else {
+                                                    activeResizeHandle = null
+                                                }
+                                            },
                                             onDragEnd = {
-                                                selectedElementId?.let { state.moveElementDone(it) }
+                                                if (activeResizeHandle != null) {
+                                                    selectedElementId?.let { state.resizeElementDone(it) }
+                                                    activeResizeHandle = null
+                                                } else {
+                                                    selectedElementId?.let { state.moveElementDone(it) }
+                                                }
                                             },
                                         ) { _, dragAmount ->
                                             val id = selectedElementId ?: return@detectDragGestures
@@ -221,9 +246,15 @@ fun EditorScreen(
                                                 size.width.toFloat(), size.height.toFloat(),
                                                 selectedLabelSize.widthPx, selectedLabelSize.heightPx,
                                             )
-                                            val newX = if (gridSize > 0f) snapToGrid(el.x + dx, gridSize) else el.x + dx
-                                            val newY = if (gridSize > 0f) snapToGrid(el.y + dy, gridSize) else el.y + dy
-                                            state.moveElement(id, newX, newY)
+                                            val handle = activeResizeHandle
+                                            if (handle != null) {
+                                                val bounds = applyResize(el, handle, dx, dy, gridSize)
+                                                state.resizeElementFromHandle(id, bounds.x, bounds.y, bounds.width, bounds.height)
+                                            } else {
+                                                val newX = if (gridSize > 0f) snapToGrid(el.x + dx, gridSize) else el.x + dx
+                                                val newY = if (gridSize > 0f) snapToGrid(el.y + dy, gridSize) else el.y + dy
+                                                state.moveElement(id, newX, newY)
+                                            }
                                         }
                                     },
                             ) {
