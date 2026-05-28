@@ -21,12 +21,12 @@ kotlin {
 
 android {
     namespace = "com.avicennasis.bluepaper"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.avicennasis.bluepaper"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 2
         versionName = "0.9.0"
     }
@@ -39,21 +39,21 @@ android {
 
 configurations.all {
     resolutionStrategy {
-        force("androidx.core:core:1.15.0")
-        force("androidx.core:core-ktx:1.15.0")
+        force("androidx.core:core:1.18.0")
+        force("androidx.core:core-ktx:1.18.0")
         force(
-            "io.netty:netty-codec-http2:4.1.133.Final",
-            "io.netty:netty-codec-http:4.1.133.Final",
-            "io.netty:netty-codec:4.1.133.Final",
-            "io.netty:netty-common:4.1.133.Final",
-            "io.netty:netty-handler:4.1.133.Final",
-            "io.netty:netty-handler-proxy:4.1.133.Final",
+            "io.netty:netty-codec-http2:4.2.13.Final",
+            "io.netty:netty-codec-http:4.2.13.Final",
+            "io.netty:netty-codec:4.2.13.Final",
+            "io.netty:netty-common:4.2.13.Final",
+            "io.netty:netty-handler:4.2.13.Final",
+            "io.netty:netty-handler-proxy:4.2.13.Final",
             "com.google.protobuf:protobuf-java:3.25.5",
             "org.bouncycastle:bcprov-jdk18on:1.84",
             "org.bouncycastle:bcpkix-jdk18on:1.84",
             "org.bitbucket.b_c:jose4j:0.9.6",
             "org.jdom:jdom2:2.0.6.1",
-            "commons-io:commons-io:2.14.0",
+            "commons-io:commons-io:2.22.0",
         )
     }
 }
