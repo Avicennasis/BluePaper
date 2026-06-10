@@ -5,3 +5,7 @@ build/
 local.properties
 .DS_Store
 *.hprof
+
+# Python tooling venvs
+venv/
+.venv/
