@@ -21,12 +21,12 @@ kotlin {
 
 android {
     namespace = "com.avicennasis.bluepaper"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.avicennasis.bluepaper"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 2
         versionName = "0.9.0"
     }
