@@ -39,8 +39,8 @@ android {
 
 configurations.all {
     resolutionStrategy {
-        force("androidx.core:core:1.15.0")
-        force("androidx.core:core-ktx:1.15.0")
+        force("androidx.core:core:1.19.0")
+        force("androidx.core:core-ktx:1.19.0")
         force(
             "io.netty:netty-codec-http2:4.1.135.Final",
             "io.netty:netty-codec-http:4.1.135.Final",
