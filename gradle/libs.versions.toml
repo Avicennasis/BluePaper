@@ -7,7 +7,7 @@ kable = "0.43.1"
 serialization = "1.11.0"
 activity-compose = "1.9.3"
 core-ktx = "1.15.0"
-dbus-java = "5.1.0"
+dbus-java = "5.2.0"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
