@@ -5,7 +5,7 @@ agp = "9.1.1"
 coroutines = "1.11.0"
 kable = "0.43.1"
 serialization = "1.11.0"
-activity-compose = "1.9.3"
+activity-compose = "1.13.0"
 core-ktx = "1.15.0"
 dbus-java = "5.1.0"
 
