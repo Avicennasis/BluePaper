@@ -9,3 +9,6 @@ local.properties
 # Python tooling venvs
 venv/
 .venv/
+
+# Stargazer context overlays
+.stargazer-*
