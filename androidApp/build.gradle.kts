@@ -42,12 +42,12 @@ configurations.all {
         force("androidx.core:core:1.19.0")
         force("androidx.core:core-ktx:1.19.0")
         force(
-            "io.netty:netty-codec-http2:4.2.16.Final",
+            "io.netty:netty-codec-http2:4.2.17.Final",
             "io.netty:netty-codec-http:4.2.17.Final",
-            "io.netty:netty-codec:4.2.16.Final",
-            "io.netty:netty-common:4.2.16.Final",
-            "io.netty:netty-handler:4.2.16.Final",
-            "io.netty:netty-handler-proxy:4.2.16.Final",
+            "io.netty:netty-codec:4.2.17.Final",
+            "io.netty:netty-common:4.2.17.Final",
+            "io.netty:netty-handler:4.2.17.Final",
+            "io.netty:netty-handler-proxy:4.2.17.Final",
             "com.google.protobuf:protobuf-java:4.35.1",
             "org.bouncycastle:bcprov-jdk18on:1.85.2",
             "org.bouncycastle:bcpkix-jdk18on:1.85",
