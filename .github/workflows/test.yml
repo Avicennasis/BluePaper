@@ -33,3 +33,16 @@ jobs:
 
       - name: Compile Android
         run: ./gradlew :shared:compileDebugKotlinAndroid :androidApp:compileDebugKotlinAndroid
+
+      # Compiling is not building. Every step above stops at Kotlin
+      # compilation, so nothing here ever ran Android PACKAGING — and
+      # packaging is where checkDebugAarMetadata lives. That is how the
+      # androidx.core 1.19.0 bump in 62e2db5 left `assemble` broken for weeks
+      # (it requires compileSdk 37, the app was on 36) while this workflow
+      # stayed green. Found only because CodeQL's autobuild runs `assemble`
+      # and this job does not.
+      #
+      # assembleDebug, not assemble: the release variant needs signing
+      # config that CI has no business holding.
+      - name: Assemble Android (debug)
+        run: ./gradlew :androidApp:assembleDebug
