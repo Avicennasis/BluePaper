@@ -8,9 +8,15 @@ on:
   schedule:
     - cron: "0 6 * * 1"
 
+permissions:
+  contents: read
+
 jobs:
   analyze:
-    name: Analyze
+    # PINNED DELIBERATELY — GitHub derives an unnamed matrix job's title from
+    # ALL matrix keys, so adding build-mode below would rename this job and
+    # make any required "Analyze (actions)" context unsatisfiable.
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -20,16 +26,45 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [actions]
+        # Kotlin Multiplatform: 138 Kotlin files against 1 Python file, so
+        # java-kotlin is the coverage that actually matters in this repo.
+        language: [actions, python, java-kotlin]
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up JDK 17
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          java-version: "17"
+          distribution: temurin
+
+      - name: Setup Gradle
+        if: matrix.language == 'java-kotlin'
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
         with:
           languages: ${{ matrix.language }}
+          # java-kotlin is MANUAL, not autobuild. Autobuild runs
+          # `./gradlew assemble`, which reaches :androidApp:checkDebugAarMetadata
+          # and fails on a pre-existing dependency/compileSdk mismatch
+          # (androidx.core:core:1.19.0 wants compileSdk 37+, :androidApp is on
+          # 36) — unrelated to code scanning. The compile tasks below mirror
+          # this repo's own CI (.github/workflows/test.yml), which is green:
+          # they compile every Kotlin source set without invoking Android
+          # packaging. `none` is not an option here — on a compiled language it
+          # yields an EMPTY database rather than an error.
+          build-mode: ${{ matrix.language == 'java-kotlin' && 'manual' || 'none' }}
+
+      - name: Build Kotlin (manual build-mode)
+        if: matrix.language == 'java-kotlin'
+        run: |
+          ./gradlew :shared:compileKotlinDesktop :desktopApp:compileKotlinDesktop \
+                    :shared:compileDebugKotlinAndroid :androidApp:compileDebugKotlinAndroid
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
