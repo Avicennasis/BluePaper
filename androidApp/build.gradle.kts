@@ -21,7 +21,10 @@ kotlin {
 
 android {
     namespace = "com.avicennasis.bluepaper"
-    compileSdk = 36
+    // androidx.core 1.19.0 (forced below for the security bump in 62e2db5)
+    // requires callers to compile against API 37+. targetSdk stays at 36
+    // deliberately — that is a runtime-behaviour choice, not a build one.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.avicennasis.bluepaper"
