@@ -8,9 +8,15 @@ on:
   schedule:
     - cron: "0 6 * * 1"
 
+permissions:
+  contents: read
+
 jobs:
   analyze:
-    name: Analyze
+    # PINNED DELIBERATELY — GitHub derives an unnamed matrix job's title from
+    # ALL matrix keys, so adding build-mode below would rename this job and
+    # make any required "Analyze (actions)" context unsatisfiable.
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -20,16 +26,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [actions]
+        # This repo is Kotlin Multiplatform: 138 Kotlin files against 1 Python
+        # file, so java-kotlin is the coverage that actually matters here.
+        language: [actions, python, java-kotlin]
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
         with:
           languages: ${{ matrix.language }}
+          # java-kotlin is compiled and needs a real build; build-mode: none
+          # would yield an EMPTY database rather than an error.
+          build-mode: ${{ matrix.language == 'java-kotlin' && 'autobuild' || 'none' }}
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
