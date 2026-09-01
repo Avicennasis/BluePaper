@@ -51,7 +51,7 @@ configurations.all {
             "io.netty:netty-common:4.2.17.Final",
             "io.netty:netty-handler:4.2.17.Final",
             "io.netty:netty-handler-proxy:4.2.17.Final",
-            "com.google.protobuf:protobuf-java:4.36.0",
+            "com.google.protobuf:protobuf-java:4.36.1",
             "org.bouncycastle:bcprov-jdk18on:1.85.2",
             "org.bouncycastle:bcpkix-jdk18on:1.85",
             "org.bitbucket.b_c:jose4j:0.9.6",
