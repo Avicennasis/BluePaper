@@ -2,5 +2,14 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "Hold Kotlin below 2.4.20: CodeQL extractor fails on >=2.4.20 (CI red 2026-09-09, revert 2b0ef20). Re-apply 2.4.20+ when the CodeQL actions build supports it, then delete this rule.",
+      "matchSourceUrlPrefixes": [
+        "https://github.com/JetBrains/kotlin"
+      ],
+      "allowedVersions": "<2.4.20"
+    }
   ]
 }
