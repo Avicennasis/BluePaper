@@ -54,7 +54,7 @@ configurations.all {
             "com.google.protobuf:protobuf-java:4.36.1",
             "org.bouncycastle:bcprov-jdk18on:1.85.2",
             "org.bouncycastle:bcpkix-jdk18on:1.85",
-            "org.bitbucket.b_c:jose4j:0.9.6",
+            "org.bitbucket.b_c:jose4j:0.9.7",
             "org.jdom:jdom2:2.0.6.1",
             "commons-io:commons-io:2.22.0",
         )
