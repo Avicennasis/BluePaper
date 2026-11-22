@@ -62,4 +62,12 @@ object DeviceRegistry {
      *  Underscores are stripped because real devices advertise without them (e.g. "D11H" not "D11_H"). */
     fun scanPrefixes(): List<String> =
         configs.keys.map { it.uppercase().replace("_", "") }.distinct()
+
+    /** True if a Bluetooth device name belongs to a supported printer. Real devices are
+     *  inconsistent about underscores ("D11H-…" vs. a paired D110_M's "D110_M-HC23072563"),
+     *  so compare with underscores stripped from both sides. */
+    fun isSupportedPrinterName(name: String): Boolean {
+        val normalized = name.uppercase().replace("_", "")
+        return scanPrefixes().any { normalized.startsWith(it) }
+    }
 }

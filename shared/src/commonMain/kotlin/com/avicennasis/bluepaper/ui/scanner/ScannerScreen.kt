@@ -24,6 +24,11 @@ fun ScannerScreen(
     val connectionState by state.connectionState.collectAsState()
     val error by state.error.collectAsState()
 
+    // Printers already paired with this computer show up immediately — no scan needed.
+    LaunchedEffect(Unit) {
+        state.loadPairedDevices()
+    }
+
     LaunchedEffect(connectionState) {
         if (connectionState == ConnectionState.CONNECTED) {
             onConnected()
@@ -97,7 +102,10 @@ fun ScannerScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(device.name, style = MaterialTheme.typography.titleMedium)
-                                Text(device.address, style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    if (device.paired) "${device.address} · Paired" else device.address,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
                             }
                             Text(
                                 "${device.rssi} dBm",

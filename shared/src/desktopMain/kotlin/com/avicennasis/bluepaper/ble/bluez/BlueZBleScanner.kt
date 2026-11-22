@@ -22,6 +22,21 @@ class BlueZBleScanner : BleScanner {
         private val isScanning = AtomicBoolean(false)
     }
 
+    /** Paired devices from BlueZ's object tree — includes printers already connected to the
+     *  PC, which stop advertising and so never show up in discovery. */
+    override suspend fun pairedDevices(): List<ScannedDevice> = withContext(Dispatchers.IO) {
+        val objectManager = BlueZConnection.get().getRemoteObject(
+            BlueZPaths.BLUEZ_SERVICE,
+            "/",
+            ObjectManager::class.java
+        )
+        objectManager.GetManagedObjects().mapNotNull { (path, interfaces) ->
+            if (!path.path.startsWith(BlueZPaths.ADAPTER_PATH + "/dev_")) return@mapNotNull null
+            val deviceProps = interfaces[BlueZPaths.DEVICE_INTERFACE] ?: return@mapNotNull null
+            BlueZDevices.toScannedDevice(deviceProps)?.takeIf { it.paired }
+        }.also { println("[BlueZBleScanner] Paired devices: ${it.map { d -> d.name }}") }
+    }
+
     override fun scan(namePrefix: String): Flow<ScannedDevice> = callbackFlow {
         // Prevent multiple simultaneous scans
         if (!isScanning.compareAndSet(false, true)) {
@@ -60,23 +75,10 @@ class BlueZBleScanner : BleScanner {
             for ((path, interfaces) in existingObjects) {
                 if (!path.path.startsWith(BlueZPaths.ADAPTER_PATH + "/dev_")) continue
                 val deviceProps = interfaces[BlueZPaths.DEVICE_INTERFACE] ?: continue
+                val device = BlueZDevices.toScannedDevice(deviceProps) ?: continue
+                if (!device.name.lowercase().startsWith(namePrefix.lowercase())) continue
 
-                val name = (deviceProps["Name"]?.value as? String) ?: continue
-                if (!name.lowercase().startsWith(namePrefix.lowercase())) continue
-
-                val address = (deviceProps["Address"]?.value as? String) ?: continue
-                val rssi = (deviceProps["RSSI"]?.value as? Short)?.toInt() ?: -100
-
-                @Suppress("UNCHECKED_CAST")
-                val uuids = (deviceProps["UUIDs"]?.value as? List<String>) ?: emptyList()
-
-                val device = ScannedDevice(
-                    name = name,
-                    address = address,
-                    rssi = rssi,
-                    serviceUuids = uuids,
-                )
-                println("[BlueZBleScanner] Found existing device: $name ($address) UUIDs=${uuids.size}")
+                println("[BlueZBleScanner] Found existing device: ${device.name} (${device.address}) UUIDs=${device.serviceUuids.size}")
                 trySend(device)
             }
 
@@ -87,24 +89,10 @@ class BlueZBleScanner : BleScanner {
                     @Suppress("UNCHECKED_CAST")
                     val deviceProps = (interfaces[BlueZPaths.DEVICE_INTERFACE]
                         as? Map<String, Variant<*>>) ?: return
+                    val device = BlueZDevices.toScannedDevice(deviceProps) ?: return
+                    if (!device.name.lowercase().startsWith(namePrefix.lowercase())) return
 
-                    val name = (deviceProps["Name"]?.value as? String) ?: return
-                    if (!name.lowercase().startsWith(namePrefix.lowercase())) return
-
-                    val address = (deviceProps["Address"]?.value as? String) ?: return
-                    val rssi = (deviceProps["RSSI"]?.value as? Short)?.toInt() ?: -100
-
-                    @Suppress("UNCHECKED_CAST")
-                    val uuids = (deviceProps["UUIDs"]?.value as? List<String>) ?: emptyList()
-
-                    val device = ScannedDevice(
-                        name = name,
-                        address = address,
-                        rssi = rssi,
-                        serviceUuids = uuids,
-                    )
-
-                    println("[BlueZBleScanner] Found new device: $name ($address) RSSI=$rssi")
+                    println("[BlueZBleScanner] Found new device: ${device.name} (${device.address}) RSSI=${device.rssi}")
                     trySend(device)
                 }
             }

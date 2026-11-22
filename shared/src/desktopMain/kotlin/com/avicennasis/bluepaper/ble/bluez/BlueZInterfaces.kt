@@ -1,5 +1,6 @@
 package com.avicennasis.bluepaper.ble.bluez
 
+import com.avicennasis.bluepaper.ble.ScannedDevice
 import org.freedesktop.dbus.annotations.DBusInterfaceName
 import org.freedesktop.dbus.interfaces.DBusInterface
 import org.freedesktop.dbus.interfaces.Properties
@@ -79,5 +80,20 @@ object BlueZPaths {
     fun devicePath(adapterPath: String, address: String): String {
         val sanitized = address.uppercase().replace(":", "_")
         return "$adapterPath/dev_$sanitized"
+    }
+}
+
+/** Maps org.bluez.Device1 properties to a [ScannedDevice]. */
+object BlueZDevices {
+    fun toScannedDevice(props: Map<String, Variant<*>>): ScannedDevice? {
+        val name = props["Name"]?.value as? String ?: return null
+        val address = props["Address"]?.value as? String ?: return null
+        val rssi = (props["RSSI"]?.value as? Short)?.toInt() ?: -100
+
+        @Suppress("UNCHECKED_CAST")
+        val uuids = props["UUIDs"]?.value as? List<String> ?: emptyList()
+        val paired = props["Paired"]?.value == true || props["Bonded"]?.value == true
+
+        return ScannedDevice(name = name, address = address, rssi = rssi, serviceUuids = uuids, paired = paired)
     }
 }
