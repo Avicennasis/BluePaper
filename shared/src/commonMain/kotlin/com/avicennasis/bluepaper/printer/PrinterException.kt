@@ -7,3 +7,6 @@ class PrinterNotConnectedException(message: String = "Printer is not connected")
 class PrinterTimeoutException(message: String = "Printer response timed out") : PrinterException(message)
 
 class PrinterProtocolException(message: String) : PrinterException(message)
+
+/** The printer reports a state it can't print in (lid open, no labels, unreadable RFID tag). */
+class PrinterNotReadyException(message: String) : PrinterException(message)

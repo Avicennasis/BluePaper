@@ -8,8 +8,11 @@ object CommandBuilder {
     fun getRfid(): NiimbotPacket =
         NiimbotPacket(RequestCode.GET_RFID.code, byteArrayOf(0x01))
 
-    fun heartbeat(): NiimbotPacket =
-        NiimbotPacket(RequestCode.HEARTBEAT.code, byteArrayOf(0x01))
+    fun heartbeat(): NiimbotPacket = heartbeat(type = 1)
+
+    /** Heartbeat of the given type; type 4 returns the 0xD9 reply with lid/labels/RFID state. */
+    fun heartbeat(type: Int): NiimbotPacket =
+        NiimbotPacket(RequestCode.HEARTBEAT.code, byteArrayOf(type.toByte()))
 
     fun setLabelType(n: Int): NiimbotPacket {
         require(n in 1..3) { "Label type must be 1-3, got $n" }

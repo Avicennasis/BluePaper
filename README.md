@@ -154,6 +154,7 @@ The app requests permissions on first launch with rationale dialogs.
 | BLE scan finds nothing | Ensure BlueZ is running: `systemctl status bluetooth` |
 | Printer not listed | Pair it in system Bluetooth settings (it then appears on open), or tap Scan |
 | "Printer couldn't update the label roll's RFID tag" | The roll's RFID tag says all its labels are used; load another roll |
+| "The printer can't read the label roll's RFID tag" | The printer won't print without a readable NIIMBOT roll tag (it would feed a blank label) |
 | D-Bus permission denied | Add user to bluetooth group, re-login |
 
 ## Building

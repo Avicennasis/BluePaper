@@ -3,6 +3,7 @@ package com.avicennasis.bluepaper.printer
 import com.avicennasis.bluepaper.ble.BleTransport
 import com.avicennasis.bluepaper.config.DeviceConfig
 import com.avicennasis.bluepaper.model.HeartbeatResponse
+import com.avicennasis.bluepaper.model.HeartbeatStatus
 import com.avicennasis.bluepaper.model.PrintStatus
 import com.avicennasis.bluepaper.model.RFIDResponse
 import com.avicennasis.bluepaper.protocol.CommandBuilder
@@ -235,10 +236,33 @@ class PrinterClient(private val transport: BleTransport) {
         }
         println("[PrinterClient] ${config.model}: protocol v$version")
         if (version >= 4) {
+            // Check like the official app does: a D110_M with no readable RFID tag accepts the
+            // job, reports success and feeds a blank label. Undecodable replies don't block.
+            val status = try {
+                heartbeatStatus()
+            } catch (e: PrinterException) {
+                println("[PrinterClient] Status check failed (${e.message}); printing anyway")
+                null
+            }
+            println("[PrinterClient] status: $status")
+            status?.let { notReadyReason(it) }?.let { throw PrinterNotReadyException(it) }
             printV4(imageRows, width, density, quantity, config.printheadPixels, onProgress)
         } else {
             print(imageRows, width, height, density, quantity, config.isV2, onProgress)
         }
+    }
+
+    /** Lid / labels / RFID state from heartbeat type 4. */
+    suspend fun heartbeatStatus(): HeartbeatStatus =
+        HeartbeatStatus.fromReply(transport.sendCommand(CommandBuilder.heartbeat(type = 4)))
+
+    internal fun notReadyReason(status: HeartbeatStatus): String? = when {
+        status.lidClosed == false -> "The printer lid is open — close it and try again."
+        status.paperInserted == false -> "No labels detected — load a label roll and try again."
+        status.rfidRead == false ->
+            "The printer can't read the label roll's RFID tag, so it won't print (it would only feed " +
+                "a blank label). Use a NIIMBOT roll whose tag the printer can read."
+        else -> null
     }
 
     /** NiimBlue's D110M_V4 print task. [width] is the row width in pixels (padded to 8 here). */
