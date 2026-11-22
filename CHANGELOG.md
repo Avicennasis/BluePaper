@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pre-print check on protocol-v4 printers: lid open, no labels, or an unreadable roll RFID tag stops the
   job with a clear message instead of feeding a blank label.
 - The editor selects the connected printer's model automatically.
+- USB printing: printers on a USB serial port (D110_M: `3513:0001`) are listed as "<MODEL> (USB)" and
+  use the same protocol code as Bluetooth (jSerialComm).
+- `docs/hardware/niimbot-d110m.md`: D110_M protocol, connection and RFID findings.
 
 ### Fixed
 - Build failed when the default `java` is a JRE: `:shared` and `:androidApp` now pin the JDK 17 toolchain.

@@ -104,6 +104,12 @@ First run downloads Gradle and dependencies (~500MB). Subsequent runs are fast.
 - Python 3 with [Bleak](https://github.com/hbldh/bleak): `pip install bleak` — the desktop app talks to the printer through a small Python bridge
 - Printers already paired in your system Bluetooth settings are listed as soon as the scanner opens
 
+**USB:** plug the printer in with USB-C. It appears as a serial port (e.g. `/dev/ttyACM0`) and is
+listed as "D110_M (USB)". On Linux your user needs the `dialout` group. Only printers with a known
+USB chip id are probed (currently the D110_M's `3513:0001`).
+
+Hardware notes, including the D110_M's protocol and RFID behaviour: [docs/hardware/niimbot-d110m.md](docs/hardware/niimbot-d110m.md).
+
 ### Print via Android
 
 For Bluetooth printing, build and install the Android APK:
