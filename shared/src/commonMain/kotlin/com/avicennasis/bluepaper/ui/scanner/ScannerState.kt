@@ -26,6 +26,9 @@ class ScannerState(
 
     val connectionState: StateFlow<ConnectionState> = transport.connectionState
 
+    private val _connectedDevice = MutableStateFlow<ScannedDevice?>(null)
+    val connectedDevice: StateFlow<ScannedDevice?> = _connectedDevice
+
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
@@ -91,6 +94,7 @@ class ScannerState(
             try {
                 _error.value = null
                 transport.connect(device)
+                _connectedDevice.value = device
             } catch (e: Exception) {
                 _error.value = "Connection failed: ${e.message}"
             }

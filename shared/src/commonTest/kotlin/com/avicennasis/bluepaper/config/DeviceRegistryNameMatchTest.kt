@@ -1,6 +1,7 @@
 package com.avicennasis.bluepaper.config
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -38,5 +39,17 @@ class DeviceRegistryNameMatchTest {
         assertFalse(DeviceRegistry.isSupportedPrinterName("JBL Flip 5"))
         assertFalse(DeviceRegistry.isSupportedPrinterName("Pixel Buds Pro"))
         assertFalse(DeviceRegistry.isSupportedPrinterName(""))
+    }
+
+    @Test
+    fun `model for a printer name picks the most specific model`() {
+        assertEquals("d110_m", DeviceRegistry.modelForName("D110_M-HC23072563"))
+        assertEquals("d110", DeviceRegistry.modelForName("D110-ABC123"))
+        assertEquals("d11_h", DeviceRegistry.modelForName("D11_H-1"))
+        assertEquals("d11", DeviceRegistry.modelForName("D11-1"))
+        assertEquals("d101", DeviceRegistry.modelForName("D101-1"))
+        assertEquals("b18", DeviceRegistry.modelForName("B18-1"))
+        assertEquals("b1", DeviceRegistry.modelForName("B1-1"))
+        assertEquals(null, DeviceRegistry.modelForName("JBL Flip 5"))
     }
 }

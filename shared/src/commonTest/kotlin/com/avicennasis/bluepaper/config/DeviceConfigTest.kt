@@ -62,6 +62,9 @@ class DeviceConfigTest {
         assertEquals(203, config.dpi)
         assertEquals(96, config.printheadPixels)
         assertTrue(config.v4WhenSupported)
+        for (size in config.labelSizes) {
+            assertTrue(size.heightPx <= 96, "${size.displayName} must fit the 96-dot head, got ${size.heightPx}")
+        }
     }
 
     @Test

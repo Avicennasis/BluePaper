@@ -6,8 +6,8 @@ object DeviceRegistry {
     private const val V2_MAX_WIDTH = 384
     private const val DEFAULT_MAX_DENSITY = 3
 
-    private fun sizes(dpi: Int, vararg dims: Pair<Double, Double>): List<LabelSize> =
-        dims.map { (w, h) -> LabelSize(w, h, dpi) }
+    private fun sizes(dpi: Int, vararg dims: Pair<Double, Double>, maxHeightPx: Int = Int.MAX_VALUE): List<LabelSize> =
+        dims.map { (w, h) -> LabelSize(w, h, dpi, maxHeightPx) }
 
     private val configs: Map<String, DeviceConfig> = listOf(
         DeviceConfig(
@@ -35,7 +35,8 @@ object DeviceRegistry {
         DeviceConfig(
             model = "d110_m", dpi = 203, maxDensity = DEFAULT_MAX_DENSITY,
             rotation = -90, isV2 = false, maxWidthPx = V1_MAX_WIDTH,
-            labelSizes = sizes(203, 30.0 to 15.0, 40.0 to 12.0, 50.0 to 14.0, 75.0 to 12.0, 109.0 to 12.5),
+            // Rows wider than the 96-dot head printed blank; NiimBlue clamps to the head too.
+            labelSizes = sizes(203, 30.0 to 15.0, 40.0 to 12.0, 50.0 to 14.0, 75.0 to 12.0, 109.0 to 12.5, maxHeightPx = 96),
             printheadPixels = 96, v4WhenSupported = true,
         ),
         DeviceConfig(
@@ -72,5 +73,14 @@ object DeviceRegistry {
     fun isSupportedPrinterName(name: String): Boolean {
         val normalized = name.uppercase().replace("_", "")
         return scanPrefixes().any { normalized.startsWith(it) }
+    }
+
+    /** Registered model for a printer's Bluetooth name, preferring the most specific match
+     *  ("D110_M-HC23072563" -> "d110_m", not "d110" or "d11"). */
+    fun modelForName(name: String): String? {
+        val normalized = name.uppercase().replace("_", "")
+        return configs.keys
+            .filter { normalized.startsWith(it.uppercase().replace("_", "")) }
+            .maxByOrNull { it.replace("_", "").length }
     }
 }

@@ -100,4 +100,14 @@ class ScannerStateTest {
         assertTrue(devices.first().paired, "a paired printer stays marked paired after a scan sees it")
         state.stopScan()
     }
+
+    @Test
+    fun `connecting records the connected device`() = runTest {
+        val state = ScannerState(FakeBleScanner(), MockBleTransport(), this)
+
+        state.connectTo(d110m)
+        advanceUntilIdle()
+
+        assertEquals(d110m, state.connectedDevice.value)
+    }
 }

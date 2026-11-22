@@ -39,7 +39,11 @@ fun BluePaperApp(
         when (currentScreen) {
             Screen.Scanner -> ScannerScreen(
                 state = scannerState,
-                onConnected = { currentScreen = Screen.Editor },
+                onConnected = {
+                    // Print with the connected printer's model, not the editor's D110 default.
+                    scannerState.connectedDevice.value?.let { editorState.selectModelForPrinter(it.name) }
+                    currentScreen = Screen.Editor
+                },
             )
             Screen.Editor -> EditorScreen(
                 state = editorState,

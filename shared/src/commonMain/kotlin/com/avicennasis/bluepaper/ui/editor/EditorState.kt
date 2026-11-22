@@ -461,6 +461,11 @@ class EditorState(
         _density.value = _density.value.coerceAtMost(config.maxDensity)
     }
 
+    /** Switch to the model matching a connected printer's name; unknown names keep the current model. */
+    fun selectModelForPrinter(printerName: String) {
+        DeviceRegistry.modelForName(printerName)?.let { selectModel(it) }
+    }
+
     fun selectLabelSize(size: LabelSize) {
         _selectedLabelSize.value = size
         // Save undo before clamping so the user can revert the label size change
