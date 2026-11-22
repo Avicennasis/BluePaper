@@ -30,10 +30,13 @@ object DeviceRegistry {
             rotation = -90, isV2 = false, maxWidthPx = V1_MAX_WIDTH,
             labelSizes = sizes(203, 30.0 to 14.0, 40.0 to 12.0, 50.0 to 14.0, 75.0 to 12.0, 109.0 to 12.5),
         ),
+        // 203 dpi / 96-dot printhead / protocol v4: NiimBlue's model database (id 2320) and
+        // its D110M v4 test, which read those values from the printer itself.
         DeviceConfig(
-            model = "d110_m", dpi = 300, maxDensity = DEFAULT_MAX_DENSITY,
+            model = "d110_m", dpi = 203, maxDensity = DEFAULT_MAX_DENSITY,
             rotation = -90, isV2 = false, maxWidthPx = V1_MAX_WIDTH,
-            labelSizes = sizes(300, 30.0 to 15.0, 40.0 to 12.0, 50.0 to 14.0, 75.0 to 12.0, 109.0 to 12.5),
+            labelSizes = sizes(203, 30.0 to 15.0, 40.0 to 12.0, 50.0 to 14.0, 75.0 to 12.0, 109.0 to 12.5),
+            printheadPixels = 96, v4WhenSupported = true,
         ),
         DeviceConfig(
             model = "b18", dpi = 203, maxDensity = DEFAULT_MAX_DENSITY,

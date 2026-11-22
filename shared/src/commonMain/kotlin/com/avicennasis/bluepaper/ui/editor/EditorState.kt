@@ -532,13 +532,13 @@ class EditorState(
 
         scope.launch {
             try {
-                client.print(
+                client.printJob(
+                    config = config,
                     imageRows = imageRows,
                     width = width,
                     height = height,
                     density = dens,
                     quantity = qty,
-                    isV2 = config.isV2,
                     onProgress = { completed, total ->
                         _printProgress.value = PrintProgress(completed, total, true)
                     },
