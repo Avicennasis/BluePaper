@@ -76,11 +76,13 @@ niimbluelib's own reference dump from a D110M v4.23 has the same `PrinterStatusD
 
 ### v4 sequence (what prints)
 
-`SetLabelType(1)` → `SetDensity(3)` → `PrintStart` 9 bytes `[pages u16, 0,0,0,0, color, speed, flag]`
+`SetLabelType(type)` → `SetDensity(3)` → `PrintStart` 9 bytes `[pages u16, 0,0,0,0, color, speed, flag]`
 → `PrintStatus` sent without waiting for the reply (the official app does this) →
 `SetPageSize` 13 bytes `[rows u16, cols u16, copies u16, 0 ×7]` → rows → `PageEnd` → poll
 `PrintStatus` until `page == copies` → `PrintEnd`.
 
+- Use type `1` for gap labels and type `5` for transparent labels.
+  [NiimBlue label types](https://printers.niim.blue/other/label-types/)
 - Rows: `0x85` `[y u16, counts ×3, repeat, bits…]`. For a 96-dot head the counts are the black
   pixels per third (4 bytes each). If a row is wider than three thirds, the total is sent as
   `[0, low, high]`. Blank rows can be sent as `0x84` `[y u16, repeat]`.
@@ -122,7 +124,7 @@ tag's bookkeeping, not as a reliable count of labels on the roll.
 
 | State | Legacy job | v4 job | Official app |
 |---|---|---|---|
-| Tag readable, used < total | Acked, reported complete, counted on the tag (185 → 187 over two jobs), nothing burned (rows were 177 dots wide) | Not tested with a readable tag and 96-dot rows | Not tested |
+| Tag readable, used < total | Acked, reported complete, counted on the tag (185 → 187 over two jobs), nothing burned (rows were 177 dots wide) | Physically printed on the [tagged transparent roll](#tagged-transparent-roll-follow-up) over USB | Not tested |
 | Tag readable, used > total (187/186) | Not tested | `PrintStart` → `0xDB 0x14` WriteRfidFail; nothing feeds | Not tested |
 | No readable tag | Not tested in a confirmed no-tag state | Job completes (100%, page 1), label feeds, **nothing burns** (timeline step 7; the state check straight after showed no readable tag) | Refuses: "F1 No label paper detected. Please use NIIMBOT label paper…" |
 
@@ -147,12 +149,23 @@ temp 74, lid 0 = closed, paper 0 = inserted, rfid 0 = not read, …]` (niimbluel
    **RFID not read**. GetRfid returned no tag. The official app gave "F1 No label paper detected".
 9. Pre-print check added. The same state now stops the job before `PrintStart`, over both Bluetooth and USB.
 
+### Tagged transparent roll follow-up
+
+The spare roll was marked `TT14*30-210 TRANSPARENT` (14 mm across the roll, 30 mm along the feed).
+On firmware 4.30, USB heartbeat confirmed the closed lid, paper present, and a readable tag.
+`GetRfid` reported barcode `092323005`, type `5`, and a tag total of 252. The
+`GetPaperInfo` reply was four bytes with the roll seated. The packaging supplied the dimensions
+for the test.
+
+Two single-label USB jobs used protocol v4, `SetLabelType(5)`, density 3, and a 96 × 239-dot
+raster. Both produced visible black print. The second rotated the raster by −90°, the orientation
+in BluePaper's D110_M profile, and the operator confirmed that “OK” read along the 30 mm edge.
+The counter rose from 1 to 3 across the two jobs. This was a direct USB test of the printer.
+
 ### Conclusions and open questions
 
 - Steps 7–8 plus the official app's behaviour indicate the firmware won't heat the head without a
   readable tag. It doesn't report an error over v4 either; it just completes the job.
-  Not verified: a v4 print with a readable, non-exhausted tag and 96-dot rows. That's the
-  remaining end-to-end check.
 - Whether step 6 printed because a tag was read at that moment is unknown.
 - Whether jobs without a readable tag change anything on the printer isn't known.
 
@@ -177,9 +190,90 @@ From niimbluelib `PrinterErrorCode`. `PrinterErrors` in BluePaper turns these in
 ## Known issues not fixed
 
 - `RFIDResponse.fromData` expects a flag byte the D110_M doesn't send, so it returns `null`.
+- `PrinterClient.printV4` hard-codes label type `1`. `CommandBuilder.setLabelType` accepts only
+  `1` through `3`, so BluePaper's normal v4 path cannot select transparent mode.
 - `PrinterClient.getSoftwareVersion` reads bytes `04 1e` as 1054/100 = "10.54"; the firmware is 4.30.
 - `CommandBuilder.startPrintV2` (B-series) byte layout differs from niimbluelib's `printStart7b`.
 - niimbluelib drives D11_H / D101 / B1 with newer print tasks too; only D110_M was switched.
+
+## Read-only firmware inspection
+
+### CRC32 signature
+
+REA with Binwalk 3.1.0 reported one CRC32 signature in each stock update package. Binwalk's
+parser reports the 16 bytes used for signature matching, which are the first four 32-bit
+words. It assigned confidence `0` in both scans.
+[Binwalk 3.1.0 signature code](https://github.com/ReFirmLabs/binwalk/blob/v3.1.0/src/signatures/hashes.rs)
+
+A byte-for-byte check found **one complete 1,024-byte IEEE CRC-32 lookup table in each
+package**. Both matched all 256 little-endian words generated from the reflected polynomial
+`0xEDB88320`. The reference calculation was checked against Python's `zlib.crc32` on
+`123456789` before comparing the table bytes. The table content is identical across the two
+packages. Its runtime use remains unverified.
+[RFC 1952, Appendix 8](https://www.rfc-editor.org/rfc/rfc1952#section-8)
+
+| Package | Size (bytes) | SHA-256 |
+|---|---:|---|
+| `D110_M_4.30.bin` | 116,240 | `9350d5a278d88af80c83b8312b338c10a43a71bfb188b014681348f92ba20dc0` |
+| `D110_M_4.31.bin` | 116,544 | `dad95f6f1214781b607f1b569f4cf7848cf1adcb88eab58d2c1a6a27e7aa279e` |
+
+The archived 4.30 package identifies model 2320 and matches the version reported over USB.
+The 4.31 package was used for the offline comparison.
+[NiimBlue stock D110_M firmware archive](https://fw.niim.blue/stable/D110_M/)
+
+### Binwalk, REA, and Ghidra setup (Linux x86-64)
+
+The bench used REA 6.5.0, Binwalk 3.1.0, Ghidra 12.1.4, and the Temurin 21.0.13.1+2 JDK.
+The tools were installed under the user's `~/.local` directory, with launchers for
+`binwalk` and `ghidraRun` linked from `~/.local/bin`.
+
+1. With Rustup, a C toolchain, `pkg-config`, and Fontconfig and FreeType development libraries
+   available, build the locked Binwalk release. REA's Binwalk integration uses
+   `prlimit` from `util-linux`.
+   [Binwalk v3.1.0](https://github.com/ReFirmLabs/binwalk/releases/tag/v3.1.0) ·
+   [REA firmware analysis](https://github.com/morluto/rea/blob/main/docs/guides/firmware/firmware-analysis.md)
+
+   ```sh
+   rustup toolchain install stable --profile minimal --no-self-update
+   cargo +stable install --locked --version 3.1.0 --root "$HOME/.local/opt/binwalk-3.1.0" binwalk
+   ```
+
+2. Verify the upstream download checksums and extract the Ghidra and Temurin releases to
+   `~/.local/opt/ghidra_12.1.4_PUBLIC` and `~/.local/opt/temurin-jdk-21.0.13.1+2`.
+   Confirm that `bin/java` and `bin/javac` in the JDK directory both report version 21.
+   On this workstation the default `java` was version 21 and the default `javac` was
+   version 17, which caused REA's Ghidra check to fail. Setting `JAVA_HOME` for REA to
+   the dedicated JDK resolved it. Ghidra's standalone launcher uses the same JDK through
+   `JAVA_HOME_OVERRIDE` in `support/launch.properties`.
+   [Ghidra 12.1.4](https://github.com/NationalSecurityAgency/ghidra/releases/tag/Ghidra_12.1.4_build) ·
+   [Temurin JDK 21 release](https://github.com/adoptium/temurin21-binaries/releases/tag/jdk-21.0.13.1%2B2)
+
+3. Use the existing REA 6.5.0 installation or install it from a supported Node.js runtime.
+   The bench used Node.js 22.23.4. Install REA locally with
+   `npm install --global --prefix "$HOME/.local" rea-agents@6.5.0`. The Codex registration on
+   the bench calls `~/.local/bin/rea mcp` from `~/.codex2/config.toml`. Add the environment
+   table to that registration, substituting your actual absolute paths. A new MCP process
+   picks up these settings at launch.
+   [REA installation guide](https://github.com/morluto/rea/blob/main/docs/getting-started/installation.md)
+
+   ```toml
+   [mcp_servers.rea.env]
+   REA_BINWALK_COMMAND = "/home/your-user/.local/opt/binwalk-3.1.0/bin/binwalk"
+   GHIDRA_INSTALL_DIR = "/home/your-user/.local/opt/ghidra_12.1.4_PUBLIC"
+   JAVA_HOME = "/home/your-user/.local/opt/temurin-jdk-21.0.13.1+2"
+   ```
+
+For shell verification, supply the same paths to the REA CLI. The Ghidra check uses a local
+ELF executable. The firmware check inventories signatures without extracting the package.
+
+```sh
+GHIDRA_INSTALL_DIR="$HOME/.local/opt/ghidra_12.1.4_PUBLIC" \
+  JAVA_HOME="$HOME/.local/opt/temurin-jdk-21.0.13.1+2" \
+  rea inspect /usr/bin/true --provider ghidra --format json
+
+REA_BINWALK_COMMAND="$HOME/.local/opt/binwalk-3.1.0/bin/binwalk" \
+  rea inspect-firmware-regions /absolute/path/to/D110_M_4.30.bin --format json
+```
 
 ## References
 
