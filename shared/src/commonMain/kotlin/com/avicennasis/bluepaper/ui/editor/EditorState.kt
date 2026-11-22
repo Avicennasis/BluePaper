@@ -128,10 +128,23 @@ class EditorState(
 
     fun addImageElement(bitmap: ImageBitmap) {
         saveUndoSnapshot()
+        // Imported pictures are usually far larger than a label (a 2528x1696 scan vs a
+        // 239x119 px label), so shrink to fit keeping the aspect ratio — never upscale,
+        // which would blur small logos — and centre it.
+        val label = _selectedLabelSize.value
+        val fit = if (bitmap.width > 0 && bitmap.height > 0) {
+            minOf(1f, label.widthPx.toFloat() / bitmap.width, label.heightPx.toFloat() / bitmap.height)
+        } else {
+            1f
+        }
+        val width = bitmap.width * fit
+        val height = bitmap.height * fit
         val el = LabelElement.ImageElement(
             id = newId("img"),
-            width = bitmap.width.toFloat(),
-            height = bitmap.height.toFloat(),
+            x = (label.widthPx - width) / 2f,
+            y = (label.heightPx - height) / 2f,
+            width = width,
+            height = height,
             bitmap = bitmap,
         )
         _elements.value = _elements.value + el
