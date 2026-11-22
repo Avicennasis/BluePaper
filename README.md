@@ -28,7 +28,7 @@ git clone https://github.com/avicennasis/BluePaper.git && cd BluePaper
 - **6 label templates** — Simple Text, Two-Line, Image+Caption, Centered Image, Price Tag, Inventory
 - **Undo/redo** — Snapshot-based with Ctrl+Z / Ctrl+Shift+Z keyboard shortcuts
 - **Dark/Light/System theme** — Material3 with expanded color schemes, persisted preference
-- **Image import** — Load PNG/JPG/BMP with position, scale, rotate, flip controls
+- **Image import** — Load PNG/JPG/BMP, auto-fitted to the label, with position, scale, rotate, flip controls
 - **Live preview** — Tabbed Design preview + monochrome Print Preview showing exact printer output
 - **Device rotation** — Automatic per-model rotation (D-series: -90, B-series: 0)
 - **Save/load** — Label designs saved as `.bpl` JSON files (v2 format with v1 migration)
@@ -56,7 +56,7 @@ git clone https://github.com/avicennasis/BluePaper.git && cd BluePaper
 | D11-H | 300 | V1 | 240px |
 | D101 | 203 | V1 | 240px |
 | D110 | 203 | V1 | 240px |
-| D110-M | 300 | V1 | 240px |
+| D110-M | 203 | V4 (auto-detected, V1 fallback) | 96-dot head |
 | B1 | 203 | V2 | 384px |
 | B18 | 203 | V2 | 384px |
 | B21 | 203 | V2 | 384px |
@@ -101,6 +101,8 @@ First run downloads Gradle and dependencies (~500MB). Subsequent runs are fast.
 - BlueZ 5.x (pre-installed on most distros)
 - D-Bus system bus access
 - User must be in `bluetooth` group: `sudo usermod -aG bluetooth $USER` (then re-login)
+- Python 3 with [Bleak](https://github.com/hbldh/bleak): `pip install bleak` — the desktop app talks to the printer through a small Python bridge
+- Printers already paired in your system Bluetooth settings are listed as soon as the scanner opens
 
 ### Print via Android
 
@@ -150,6 +152,8 @@ The app requests permissions on first launch with rationale dialogs.
 | App won't start | Ensure X11/Wayland display is available |
 | Fonts look wrong | Install `fonts-noto` for full Unicode coverage |
 | BLE scan finds nothing | Ensure BlueZ is running: `systemctl status bluetooth` |
+| Printer not listed | Pair it in system Bluetooth settings (it then appears on open), or tap Scan |
+| "Printer couldn't update the label roll's RFID tag" | The roll's RFID tag says all its labels are used; load another roll |
 | D-Bus permission denied | Add user to bluetooth group, re-login |
 
 ## Building
