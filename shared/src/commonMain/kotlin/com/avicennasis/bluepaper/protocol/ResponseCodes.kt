@@ -31,4 +31,14 @@ object ResponseCodes {
         RequestCode.GET_INFO.code -> request.data.firstOrNull()?.let { setOf(0x40 + (it.toInt() and 0xFF)) }
         else -> replies[request.type]
     }
+
+    /** Unsolicited "rows printed so far" notice sent during a page; never a reply. */
+    const val PRINTER_CHECK_LINE = 0xD3
+
+    /** Whether [reply] answers a request expecting [expected] (null: anything but a check-line notice). */
+    fun isReply(reply: NiimbotPacket, expected: Set<Int>?): Boolean = when {
+        reply.type == PRINT_ERROR -> true
+        expected != null -> reply.type in expected
+        else -> reply.type != PRINTER_CHECK_LINE
+    }
 }

@@ -59,6 +59,7 @@ kotlin {
                 implementation("com.google.zxing:core:3.5.4")
                 implementation(libs.dbus.java.core)
                 implementation(libs.dbus.java.transport.jnr.unixsocket)
+                implementation(libs.jserialcomm)
                 runtimeOnly(libs.slf4j.simple)
             }
         }

@@ -83,4 +83,19 @@ object DeviceRegistry {
             .filter { normalized.startsWith(it.uppercase().replace("_", "")) }
             .maxByOrNull { it.replace("_", "").length }
     }
+
+    /** Printer model ids (GetInfo key 8), from niimbluelib's printer database. */
+    private val modelIds: Map<Int, String> = mapOf(
+        2320 to "d110_m", 2304 to "d110", 2305 to "d110", 512 to "d11", 528 to "d11_h",
+        2560 to "d101", 4096 to "b1", 3584 to "b18", 768 to "b21",
+    )
+
+    fun modelForModelId(id: Int): String? = modelIds[id]
+
+    /** Model id from a GetInfo(DEVICE_TYPE) reply: 2 bytes big-endian, or 1 byte meaning id >> 8. */
+    fun modelIdFromReply(data: ByteArray): Int? = when (data.size) {
+        0 -> null
+        1 -> (data[0].toInt() and 0xFF) shl 8
+        else -> ((data[0].toInt() and 0xFF) shl 8) or (data[1].toInt() and 0xFF)
+    }
 }

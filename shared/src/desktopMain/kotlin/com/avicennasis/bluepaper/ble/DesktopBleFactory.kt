@@ -2,6 +2,8 @@ package com.avicennasis.bluepaper.ble
 
 import com.avicennasis.bluepaper.ble.bluez.BleakBleTransport
 import com.avicennasis.bluepaper.ble.bluez.BlueZBleScanner
+import com.avicennasis.bluepaper.ble.serial.SerialTransport
+import com.avicennasis.bluepaper.ble.serial.UsbPrinterFinder
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,19 +21,17 @@ object DesktopBleFactory {
     val isMacOS: Boolean = os.contains("mac")
     val isWindows: Boolean = os.contains("windows")
 
-    fun createScanner(): BleScanner {
-        return when {
-            isLinux -> BlueZBleScanner()
-            else -> StubBleScanner()
-        }
-    }
+    fun createScanner(): BleScanner =
+        DesktopScanner(
+            bluetooth = if (isLinux) BlueZBleScanner() else StubBleScanner(),
+            usb = UsbPrinterFinder(),
+        )
 
-    fun createTransport(): BleTransport {
-        return when {
-            isLinux -> BleakBleTransport()
-            else -> StubBleTransport()
-        }
-    }
+    fun createTransport(): BleTransport =
+        DesktopTransport(
+            bluetooth = if (isLinux) BleakBleTransport() else StubBleTransport(),
+            usb = SerialTransport(),
+        )
 }
 
 /** Stub scanner for unsupported platforms */

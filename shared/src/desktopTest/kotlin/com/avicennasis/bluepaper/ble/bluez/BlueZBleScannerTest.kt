@@ -16,7 +16,8 @@ class BlueZBleScannerTest {
 
         val scanner = DesktopBleFactory.createScanner()
         assertNotNull(scanner)
-        assertTrue(scanner is BlueZBleScanner)
+        // BlueZ discovery plus USB serial printers.
+        assertTrue(scanner is com.avicennasis.bluepaper.ble.DesktopScanner)
     }
 
     @Test

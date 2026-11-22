@@ -52,4 +52,20 @@ class DeviceRegistryNameMatchTest {
         assertEquals("b1", DeviceRegistry.modelForName("B1-1"))
         assertEquals(null, DeviceRegistry.modelForName("JBL Flip 5"))
     }
+
+    @Test
+    fun `model for a printer model id`() {
+        // Model ids from niimbluelib's printer database; 2320 is what a real D110_M reports.
+        val expected = mapOf(2320 to "d110_m", 2304 to "d110", 2305 to "d110", 512 to "d11", 528 to "d11_h",
+            2560 to "d101", 4096 to "b1", 3584 to "b18", 768 to "b21")
+        for ((id, model) in expected) assertEquals(model, DeviceRegistry.modelForModelId(id), "id $id")
+        assertEquals(null, DeviceRegistry.modelForModelId(9999))
+    }
+
+    @Test
+    fun `model id from a GetInfo reply`() {
+        assertEquals(2320, DeviceRegistry.modelIdFromReply(byteArrayOf(0x09, 0x10)))
+        assertEquals(512, DeviceRegistry.modelIdFromReply(byteArrayOf(0x02))) // 1-byte form: id >> 8
+        assertEquals(null, DeviceRegistry.modelIdFromReply(byteArrayOf()))
+    }
 }
