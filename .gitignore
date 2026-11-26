@@ -12,3 +12,7 @@ venv/
 
 # Stargazer context overlays
 .stargazer-*
+
+# Python bytecode
+__pycache__/
+*.pyc

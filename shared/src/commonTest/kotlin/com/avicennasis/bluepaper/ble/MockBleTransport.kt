@@ -13,6 +13,7 @@ class MockBleTransport : BleTransport {
 
     val sentCommands = mutableListOf<NiimbotPacket>()
     val sentRaw = mutableListOf<NiimbotPacket>()
+    val sentBytes = mutableListOf<ByteArray>()
     private val responseQueue = ArrayDeque<NiimbotPacket>()
 
     fun enqueueResponse(packet: NiimbotPacket) {
@@ -49,6 +50,13 @@ class MockBleTransport : BleTransport {
         sentRaw.add(packet)
     }
 
+    override suspend fun writeBytes(data: ByteArray, withResponse: Boolean) {
+        if (_connectionState.value != ConnectionState.CONNECTED) {
+            throw PrinterNotConnectedException()
+        }
+        sentBytes.add(data.copyOf())
+    }
+
     fun connectMock() {
         _connectionState.value = ConnectionState.CONNECTED
     }
@@ -56,6 +64,7 @@ class MockBleTransport : BleTransport {
     fun reset() {
         sentCommands.clear()
         sentRaw.clear()
+        sentBytes.clear()
         responseQueue.clear()
     }
 }

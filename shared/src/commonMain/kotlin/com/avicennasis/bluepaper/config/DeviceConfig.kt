@@ -12,4 +12,8 @@ data class DeviceConfig(
     val printheadPixels: Int = maxWidthPx,
     /** Print with the protocol-v4 sequence when the printer reports v4+ (NiimBlue's D110M_V4 task). */
     val v4WhenSupported: Boolean = false,
+    /** Wire protocol; Niimbot unless the printer speaks something else. */
+    val protocol: PrinterProtocol = PrinterProtocol.NIIMBOT,
+    /** Explicit GATT endpoints for non-Niimbot printers (e.g. Phomemo D30). */
+    val gatt: GattProfile? = null,
 )

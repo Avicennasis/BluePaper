@@ -1,5 +1,6 @@
 package com.avicennasis.bluepaper.ble
 
+import com.avicennasis.bluepaper.config.GattProfile
 import com.avicennasis.bluepaper.printer.PrinterException
 import com.avicennasis.bluepaper.printer.PrinterNotConnectedException
 import com.avicennasis.bluepaper.printer.PrinterProtocolException
@@ -14,6 +15,7 @@ import com.juul.kable.characteristicOf
 import com.juul.kable.peripheral
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,8 +70,10 @@ class KableBleTransport : BleTransport, AdvertisementCache {
         println("[KableBleTransport] Advertisement cache cleared")
     }
 
-    override suspend fun connect(device: ScannedDevice) {
-        println("[KableBleTransport] connect() called for ${device.name} (${device.address})")
+    override suspend fun connect(device: ScannedDevice) = connect(device, null)
+
+    override suspend fun connect(device: ScannedDevice, gatt: GattProfile?) {
+        println("[KableBleTransport] connect() called for ${device.name} (${device.address}) gatt=$gatt")
         val advertisement = advertisementMap[device.address] as? Advertisement
             ?: throw PrinterException(
                 "No cached advertisement for address ${device.address}. " +
@@ -77,10 +81,10 @@ class KableBleTransport : BleTransport, AdvertisementCache {
             )
 
         val kablePeripheral = Peripheral(advertisement)
-        connectWithPeripheral(kablePeripheral)
+        connectWithPeripheral(kablePeripheral, gatt)
     }
 
-    suspend fun connectWithPeripheral(kablePeripheral: Peripheral) {
+    suspend fun connectWithPeripheral(kablePeripheral: Peripheral, gatt: GattProfile? = null) {
         println("[KableBleTransport] connectWithPeripheral() starting")
         _connectionState.value = ConnectionState.CONNECTING
         // Recreate channel to ensure clean state (old one may have been closed by disconnect)
@@ -98,33 +102,48 @@ class KableBleTransport : BleTransport, AdvertisementCache {
             // when Kable exposes CharacteristicProperty API. For now, prefer characteristics
             // from non-standard services (skip Device Information, Generic Access, etc.)
             var foundCharacteristic: Characteristic? = null
-            outer@ for (service in services) {
-                val uuid = service.serviceUuid.toString().lowercase()
-                // Skip well-known GATT services (0x180x range)
-                if (uuid.startsWith("0000180")) continue
-                for (char in service.characteristics) {
-                    foundCharacteristic = characteristicOf(
-                        service = service.serviceUuid,
-                        characteristic = char.characteristicUuid,
-                    )
-                    println(
-                        "[KableBleTransport] Found characteristic: " +
-                        "service=${service.serviceUuid}, char=${char.characteristicUuid}"
-                    )
-                    break@outer
+            if (gatt != null) {
+                foundCharacteristic = characteristicOf(
+                    service = Uuid.parse(gatt.serviceUuid),
+                    characteristic = Uuid.parse(gatt.writeCharUuid),
+                )
+                println(
+                    "[KableBleTransport] Using explicit char service=${gatt.serviceUuid} " +
+                    "char=${gatt.writeCharUuid}"
+                )
+            } else {
+                outer@ for (service in services) {
+                    val uuid = service.serviceUuid.toString().lowercase()
+                    // Skip well-known GATT services (0x180x range)
+                    if (uuid.startsWith("0000180")) continue
+                    for (char in service.characteristics) {
+                        foundCharacteristic = characteristicOf(
+                            service = service.serviceUuid,
+                            characteristic = char.characteristicUuid,
+                        )
+                        println(
+                            "[KableBleTransport] Found characteristic: " +
+                            "service=${service.serviceUuid}, char=${char.characteristicUuid}"
+                        )
+                        break@outer
+                    }
                 }
             }
 
             if (foundCharacteristic == null) {
-                throw PrinterProtocolException("Cannot find BLE characteristic with read + write-without-response + notify")
+                throw PrinterProtocolException("Cannot find BLE characteristic for this printer")
             }
 
             notifyCharacteristic = foundCharacteristic
 
             scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-            scope!!.launch {
-                kablePeripheral.observe(foundCharacteristic).collect { data ->
-                    responseChannel.send(data)
+            // Niimbot replies arrive as notifications on its characteristic; the Phomemo D30's
+            // write characteristic is write-only, so don't subscribe for an explicit profile.
+            if (gatt == null) {
+                scope!!.launch {
+                    kablePeripheral.observe(foundCharacteristic).collect { data ->
+                        responseChannel.send(data)
+                    }
                 }
             }
 
@@ -197,6 +216,15 @@ class KableBleTransport : BleTransport, AdvertisementCache {
             val p = peripheral ?: throw PrinterNotConnectedException()
             val char = notifyCharacteristic ?: throw PrinterNotConnectedException()
             p.write(char, packet.toBytes(), WriteType.WithoutResponse)
+        }
+    }
+
+    override suspend fun writeBytes(data: ByteArray, withResponse: Boolean) {
+        println("[KableBleTransport] writeBytes: ${data.size} bytes, withResponse=$withResponse")
+        commandMutex.withLock {
+            val p = peripheral ?: throw PrinterNotConnectedException()
+            val char = notifyCharacteristic ?: throw PrinterNotConnectedException()
+            p.write(char, data, if (withResponse) WriteType.WithResponse else WriteType.WithoutResponse)
         }
     }
 }

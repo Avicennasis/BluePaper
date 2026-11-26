@@ -5,6 +5,8 @@ import com.avicennasis.bluepaper.ble.BleTransport
 import com.avicennasis.bluepaper.config.DeviceConfig
 import com.avicennasis.bluepaper.config.DeviceRegistry
 import com.avicennasis.bluepaper.config.LabelSize
+import com.avicennasis.bluepaper.config.PrinterProtocol
+import com.avicennasis.bluepaper.printer.PhomemoD30Client
 import com.avicennasis.bluepaper.printer.PrinterClient
 
 import kotlinx.coroutines.CoroutineScope
@@ -537,17 +539,28 @@ class EditorState(
 
         scope.launch {
             try {
-                client.printJob(
-                    config = config,
-                    imageRows = imageRows,
-                    width = width,
-                    height = height,
-                    density = dens,
-                    quantity = qty,
-                    onProgress = { completed, total ->
-                        _printProgress.value = PrintProgress(completed, total, true)
-                    },
-                )
+                if (config.protocol == PrinterProtocol.ESC_POS_RASTER) {
+                    PhomemoD30Client(transport).print(
+                        config = config,
+                        imageRows = imageRows,
+                        quantity = qty,
+                        onProgress = { completed, total ->
+                            _printProgress.value = PrintProgress(completed, total, true)
+                        },
+                    )
+                } else {
+                    client.printJob(
+                        config = config,
+                        imageRows = imageRows,
+                        width = width,
+                        height = height,
+                        density = dens,
+                        quantity = qty,
+                        onProgress = { completed, total ->
+                            _printProgress.value = PrintProgress(completed, total, true)
+                        },
+                    )
+                }
                 _printProgress.value = PrintProgress(qty, qty, false)
             } catch (e: Exception) {
                 _printProgress.value = PrintProgress(0, 0, false, error = e.message)

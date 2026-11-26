@@ -25,6 +25,12 @@ except ImportError:
 # Niimbot characteristic UUID
 CHAR_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
 
+# Selected write target. A printer profile (e.g. Phomemo D30) overrides these at connect
+# time; Niimbot uses its own characteristic with write-without-response.
+write_uuid = CHAR_UUID
+write_response = False
+notify_uuid = CHAR_UUID
+
 # Packet types (the byte after the 0x55 0x55 header) the printer sends on its own,
 # not in reply to a command. 0xD3 "PrinterCheckLine" reports rows printed so far
 # during a page. Taking one as a reply shifts every later reply by one: a D110_M
@@ -115,8 +121,16 @@ async def find_known_device(address: str):
         return None, f"BlueZ lookup failed: {e}"
 
 
-async def do_connect(address: str):
-    global client
+async def do_connect(address: str, service=None, char=None, notify=None, response=False):
+    global client, write_uuid, write_response, notify_uuid
+    if char:
+        write_uuid = char
+        write_response = bool(response)
+        notify_uuid = notify
+    else:
+        write_uuid = CHAR_UUID
+        write_response = False
+        notify_uuid = CHAR_UUID
     lookup_error = None
     try:
         if client:
@@ -125,10 +139,35 @@ async def do_connect(address: str):
             except:
                 pass
         known, lookup_error = await find_known_device(address)
-        client = BleakClient(known or address)
-        await client.connect(timeout=10.0)
-        await client.start_notify(CHAR_UUID, notification_handler)
-        respond({"connected": True, "address": address, "via": "bluez-object" if known else "scan"})
+        # Some cheap BLE printers (Phomemo D30, some Niimbot) advertise classic BR/EDR bits
+        # but are LE-only. BlueZ can pick the non-existent classic bearer, failing with
+        # br-connection-not-supported. If BlueZ auto-connects the LE link (device bonded and
+        # trusted), attaching to it works — wait and retry.
+        last_error = None
+        connected = False
+        for _ in range(4):
+            client = BleakClient(known or address)
+            try:
+                await client.connect(timeout=10.0)
+                connected = True
+                break
+            except BleakError as e:
+                last_error = e
+                msg = str(e).lower()
+                if "br-connection-not-supported" in msg or "not supported" in msg or "not available" in msg:
+                    client = None
+                    await asyncio.sleep(3.0)
+                    continue
+                raise
+        if not connected:
+            raise last_error or BleakError("connect failed")
+        if notify_uuid:
+            try:
+                await client.start_notify(notify_uuid, notification_handler)
+            except Exception:
+                pass
+        respond({"connected": True, "address": address, "via": "bluez-object" if known else "scan",
+                 "write": write_uuid, "response": write_response})
     except Exception as e:
         message = str(e) or type(e).__name__
         if lookup_error:
@@ -137,19 +176,20 @@ async def do_connect(address: str):
         client = None
 
 
-async def do_write(hex_data: str, wait_response: bool = True, expect=None):
+async def do_write(hex_data: str, wait_response: bool = True, expect=None, response=None):
     if not client or not client.is_connected:
         respond({"error": "not connected"})
         return
 
     try:
         data = bytes.fromhex(hex_data.replace(" ", ""))
+        resp = write_response if response is None else bool(response)
 
         if wait_response:
             # Anything queued now (late replies, check-line notices) predates this command.
             drop_pending_notifications()
 
-        await client.write_gatt_char(CHAR_UUID, data, response=False)
+        await client.write_gatt_char(write_uuid, data, response=resp)
 
         if not wait_response:
             respond({"ok": True})
@@ -190,7 +230,13 @@ async def process_command(line: str):
         if not address:
             respond({"error": "address required"})
         else:
-            await do_connect(address)
+            await do_connect(
+                address,
+                service=cmd.get("service"),
+                char=cmd.get("char"),
+                notify=cmd.get("notify"),
+                response=bool(cmd.get("response", False)),
+            )
     elif action == "write":
         data = cmd.get("data")
         if not data:
@@ -198,7 +244,7 @@ async def process_command(line: str):
         else:
             wait = cmd.get("wait", True)
             expect = set(cmd["expect"]) if cmd.get("expect") else None
-            await do_write(data, wait_response=wait, expect=expect)
+            await do_write(data, wait_response=wait, expect=expect, response=cmd.get("response"))
     elif action == "disconnect":
         await do_disconnect()
     elif action == "quit":

@@ -18,6 +18,7 @@ git clone https://github.com/avicennasis/BluePaper.git && cd BluePaper
 ## Features
 
 - **8 Niimbot printer models** — D11, D11-H, D101, D110, D110-M, B1, B18, B21
+- **Phomemo D30** — 12 mm tape, Epson ESC/POS raster over BLE (no RFID/chipped rolls)
 - **Three-panel editor** — Pro-tool layout: toolbox, interactive canvas, properties panel
 - **Element-based design** — Text, image, and barcode elements with click-to-select, drag-to-move, resize handles
 - **16 barcode formats** — QR Code, PDF417, Data Matrix, Aztec, MaxiCode, Code 128/39/93, EAN-13/8, UPC-A/E, Codabar, ITF, RSS
@@ -60,6 +61,7 @@ git clone https://github.com/avicennasis/BluePaper.git && cd BluePaper
 | B1 | 203 | V2 | 384px |
 | B18 | 203 | V2 | 384px |
 | B21 | 203 | V2 | 384px |
+| D30 (Phomemo) | 203 | ESC/POS `GS v 0` raster | 96px (12 mm tape) |
 
 ## Architecture
 

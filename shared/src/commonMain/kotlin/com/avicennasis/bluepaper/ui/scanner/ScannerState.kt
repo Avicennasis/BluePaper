@@ -93,7 +93,9 @@ class ScannerState(
         scope.launch {
             try {
                 _error.value = null
-                transport.connect(device)
+                val gatt = DeviceRegistry.modelForName(device.name)
+                    ?.let { DeviceRegistry.get(it) }?.gatt
+                transport.connect(device, gatt)
                 _connectedDevice.value = device
             } catch (e: Exception) {
                 _error.value = "Connection failed: ${e.message}"

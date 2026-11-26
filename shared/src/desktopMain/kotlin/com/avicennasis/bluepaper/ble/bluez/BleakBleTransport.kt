@@ -3,6 +3,7 @@ package com.avicennasis.bluepaper.ble.bluez
 import com.avicennasis.bluepaper.ble.BleTransport
 import com.avicennasis.bluepaper.ble.ConnectionState
 import com.avicennasis.bluepaper.ble.ScannedDevice
+import com.avicennasis.bluepaper.config.GattProfile
 import com.avicennasis.bluepaper.printer.PrinterException
 import com.avicennasis.bluepaper.printer.PrinterNotConnectedException
 import com.avicennasis.bluepaper.printer.PrinterTimeoutException
@@ -103,14 +104,22 @@ class BleakBleTransport : BleTransport {
         }
     }
 
-    override suspend fun connect(device: ScannedDevice) {
-        println("[BleakBleTransport] connect() called for ${device.name} (${device.address})")
+    override suspend fun connect(device: ScannedDevice) = connect(device, null)
+
+    override suspend fun connect(device: ScannedDevice, gatt: GattProfile?) {
+        println("[BleakBleTransport] connect() called for ${device.name} (${device.address}) gatt=$gatt")
         _connectionState.value = ConnectionState.CONNECTING
 
         try {
             val cmd = buildJsonObject {
                 put("cmd", "connect")
                 put("address", device.address)
+                if (gatt != null) {
+                    put("service", gatt.serviceUuid)
+                    put("char", gatt.writeCharUuid)
+                    gatt.notifyCharUuid?.let { put("notify", it) }
+                    put("response", gatt.writeWithResponse)
+                }
             }
 
             val result = commandMutex.withLock { sendCommand(cmd) }
@@ -207,6 +216,17 @@ class BleakBleTransport : BleTransport {
             put("wait", false)  // Don't wait for response on raw writes
         }
 
+        commandMutex.withLock { sendCommand(cmd) }
+    }
+
+    override suspend fun writeBytes(data: ByteArray, withResponse: Boolean) {
+        val hexData = data.joinToString("") { "%02x".format(it) }
+        val cmd = buildJsonObject {
+            put("cmd", "write")
+            put("data", hexData)
+            put("wait", false)
+            put("response", withResponse)
+        }
         commandMutex.withLock { sendCommand(cmd) }
     }
 }
