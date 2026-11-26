@@ -169,11 +169,12 @@ The counter rose from 1 to 3 across the two jobs. This was a direct USB test of 
 - Whether step 6 printed because a tag was read at that moment is unknown.
 - Whether jobs without a readable tag change anything on the printer isn't known.
 
-### Deliberately not pursued
+### Deliberately not pursued (revisited 2026-11-21)
 
-Rewriting or resetting a tag's count, and any way to print past the printer's tag check. These
-are Niimbot's consumable authentication. Research into them was stopped by the assistant's
-safety filters during this session and wasn't continued.
+Rewriting or resetting a tag's count, and any way to print past the printer's tag check, is
+Niimbot's consumable authentication. An earlier pass stopped here on safety grounds. It was
+revisited on 2026-11-21 — see [Label RFID tag (NTAG213)](#label-rfid-tag-ntag213) for the tag
+structure and what was and wasn't achievable.
 
 ## Error codes seen or mapped
 
@@ -274,6 +275,51 @@ GHIDRA_INSTALL_DIR="$HOME/.local/opt/ghidra_12.1.4_PUBLIC" \
 REA_BINWALK_COMMAND="$HOME/.local/opt/binwalk-3.1.0/bin/binwalk" \
   rea inspect-firmware-regions /absolute/path/to/D110_M_4.30.bin --format json
 ```
+
+## Label RFID tag (NTAG213)
+
+The roll tag is a **NTAG213** protected by a 4-byte password (observed default `12345678`, PACK
+`55550000`, `AUTH0=4` and `PROT=1`, so pages 5+ need `PWD_AUTH` even to read). Pages 5–34
+(offsets `0x14–0x87`, 120 bytes) hold the label data encrypted with **TEA-ECB** in 8-byte
+blocks.
+
+Decrypted region (offsets into the 120-byte plaintext):
+
+| off | size | field |
+|---|---|---|
+| `0x00` | 2 | reserved (u16) |
+| `0x02` | 2 | used / print count (u16) |
+| `0x04` | 4 | CRC32 of `0x00..0x03` |
+| `0x08` | 7 | UUID = `0x88` + UID[0..5] |
+| `0x10` | 16 | serial (ASCII) |
+| `0x28` | 13 | barcode (ASCII) |
+| `0x42` | 2 | roll metric / limit (u16) |
+| `0x44` | 1 | paper type |
+| `0x45` | 1 | density |
+| `0x46` | 20 | paper name (ASCII) |
+| `0x5A` | 1 | width (mm) |
+| `0x5B` | 1 | height (mm) |
+| `0x5C` | 1 | print limit |
+| `0x5F` | 1 | gap (mm) |
+| `0x74` | 4 | CRC32 of `0x08..0x73` |
+
+The count and its local CRC sit in block 0 (plaintext `0x00..0x07`), so a reset rewrites pages
+5–6 only (block 14's `0x74` CRC does not cover the count). The `0x08` UUID binds the plaintext
+to the physical chip, so a dump only moves to another chip if you re-encrypt for that chip's UID
+(or emulate it); re-encrypting for the *same* tag needs the TEA key.
+
+Status (2026-11-21): the TEA key is **not** in the D110_M 4.30 app image, and it was
+deliberately removed from the public discussion, so no fresh count block could be computed
+offline. The public dumps are other models, so they can't confirm a D110_M-specific key. The
+printer's own OTA also refuses third-party images — it enforces a whitelist of official
+firmware CRC-32 values (checked at the `0x91` step before any bytes are sent). A reader that can
+`PWD_AUTH` and read pages 5–34 (ACR122U/PN532, Proxmark, Flipper) is needed to read a tag's
+ciphertext; with a same-model plaintext/ciphertext pair the key can then be recovered.
+
+Sources:
+- Tag dumps (NTAG213, Proxmark/Flipper): https://github.com/ywaf/niimbot_tag_dumps
+- Tag structure (pages, TEA-ECB, plaintext schema): https://printers.niim.blue/other/rfig-tags/
+- Field notes (password `12345678`, PACK, blocks 5/6 = count): https://github.com/AndBondStyle/niimprint/issues/34
 
 ## References
 
