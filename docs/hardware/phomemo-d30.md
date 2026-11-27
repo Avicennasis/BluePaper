@@ -45,6 +45,20 @@ Confirmed against real hardware by:
 - `BleTransport.connect(device, gatt)` selects the explicit endpoint; implemented for the desktop
   Bleak bridge, the BlueZ D-Bus transport, and Android Kable.
 
+## Linux desktop: bumble over raw HCI
+
+BlueZ 5.72 could not finish GATT discovery on the D30 (the link dropped during
+`DiscoverAllPrimaryServices`, even after bonding, clearing the GATT cache, and disabling the
+`input` plugin). As a workaround the desktop bridge (`ble_bridge.py`) drives explicit-GATT
+printers through **bumble** over the raw HCI channel, which skips BlueZ's GATT manager entirely:
+
+- Bumble needs the exclusive HCI user channel, so the bridge **masks BlueZ** for the session
+  (`sudo -n systemctl mask --now bluetooth`) and restores it on disconnect.
+- Opening that channel needs `CAP_NET_RAW`/`CAP_NET_ADMIN`. Either run the bridge as root or grant
+  the interpreter the caps, e.g. `sudo setcap cap_net_raw,cap_net_admin+eip $(readlink -f $(python3 -c 'import sys;print(sys.executable)')))`.
+- Niimbot printers keep using the normal bleak/BlueZ path; only a `GattProfile` printer (the D30)
+  takes the bumble path.
+
 ## BlueZ bearer gotcha
 
 The D30 advertises classic (BR/EDR) hints (Class of Device, SPP/HID UUIDs) but is LE-only, so

@@ -47,7 +47,7 @@ fun ScannerScreen(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            text = "Find your Niimbot printer",
+            text = "Find your label printer",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

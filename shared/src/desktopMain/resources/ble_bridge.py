@@ -22,6 +22,58 @@ except ImportError:
     print(json.dumps({"error": "bleak not installed. Run: pip install bleak"}), flush=True)
     sys.exit(1)
 
+import subprocess
+import warnings
+import logging
+
+# Keep stdout clean: it is the JSON protocol channel (stderr is merged into it).
+warnings.filterwarnings("ignore")
+logging.getLogger("bumble").setLevel(logging.CRITICAL)
+
+# Bumble (raw HCI) is used for printers whose GATT discovery BlueZ can't complete (e.g. the
+# Phomemo D30). It needs the exclusive HCI user channel, so BlueZ is masked for the session and
+# restored on disconnect. Optional: only the explicit-GATT printers use it.
+try:
+    from bumble.device import Device as BumbleDevice
+    from bumble.host import Host as BumbleHost
+    from bumble.hci import Address as BumbleAddress
+    from bumble.core import UUID as BumbleUUID
+    from bumble.transport import open_transport_or_link
+    BUMBLE_AVAILABLE = True
+except Exception:
+    BUMBLE_AVAILABLE = False
+
+bumble_cm = None
+bumble_device = None
+bumble_conn = None
+bumble_char = None
+bumble_with_response = True
+bluez_masked = False
+
+
+def _systemctl(*args):
+    try:
+        r = subprocess.run(["sudo", "-n", "systemctl", *args], capture_output=True, text=True, timeout=25)
+        return r.returncode, (r.stdout + r.stderr).strip()
+    except Exception as e:
+        return 1, str(e)
+
+
+def _bluez_off():
+    global bluez_masked
+    rc, out = _systemctl("mask", "--now", "bluetooth")
+    if rc != 0:
+        raise RuntimeError(f"cannot release the Bluetooth adapter from BlueZ (needs sudo -n): {out}")
+    bluez_masked = True
+
+
+def _bluez_on():
+    global bluez_masked
+    if bluez_masked:
+        _systemctl("unmask", "--now", "bluetooth")
+        bluez_masked = False
+
+
 # Niimbot characteristic UUID
 CHAR_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
 
@@ -205,6 +257,78 @@ async def do_write(hex_data: str, wait_response: bool = True, expect=None, respo
         respond({"error": str(e)})
 
 
+async def do_connect_bumble(address, service=None, char=None, notify=None, response=False):
+    """Connect via raw HCI (bumble), for printers BlueZ can't discover. Masks BlueZ for the session."""
+    global bumble_cm, bumble_device, bumble_conn, bumble_char, bumble_with_response
+    if not BUMBLE_AVAILABLE:
+        respond({"error": "bumble not installed (pip install bumble) — required for this printer"})
+        return
+    try:
+        _bluez_off()
+        bumble_cm = await open_transport_or_link('hci-socket:0')
+        src, sink = await bumble_cm.__aenter__()
+        bumble_device = BumbleDevice(host=BumbleHost(src, sink))
+        await bumble_device.power_on()
+        try:
+            bumble_conn = await bumble_device.connect_le(
+                BumbleAddress(address, BumbleAddress.PUBLIC_DEVICE_ADDRESS), timeout=15)
+        except Exception:
+            bumble_conn = await bumble_device.connect_le(
+                BumbleAddress(address, BumbleAddress.RANDOM_DEVICE_ADDRESS), timeout=15)
+        gc = bumble_conn.gatt_client
+        await gc.discover_services()
+        target = BumbleUUID(char) if char else None
+        found = None
+        for s in gc.services:
+            for c in await s.discover_characteristics():
+                if target is not None and c.uuid == target:
+                    found = c
+        if found is None:
+            raise RuntimeError(f"write characteristic {char} not found")
+        bumble_char = found
+        bumble_with_response = bool(response)
+        respond({"connected": True, "address": address, "via": "bumble"})
+    except Exception as e:
+        await do_disconnect_bumble(silent=True)
+        respond({"error": str(e) or type(e).__name__})
+
+
+async def do_write_bumble(hex_data, response=None):
+    if bumble_char is None:
+        respond({"error": "not connected"})
+        return
+    try:
+        data = bytes.fromhex(hex_data.replace(" ", ""))
+        wr = bumble_with_response if response is None else bool(response)
+        await bumble_char.write_value(data, with_response=wr)
+        respond({"ok": True})
+    except Exception as e:
+        respond({"error": str(e) or type(e).__name__})
+
+
+async def do_disconnect_bumble(silent=False):
+    global bumble_cm, bumble_device, bumble_conn, bumble_char
+    try:
+        if bumble_conn is not None:
+            try:
+                await bumble_conn.disconnect()
+            except Exception:
+                pass
+        if bumble_cm is not None:
+            try:
+                await bumble_cm.__aexit__(None, None, None)
+            except Exception:
+                pass
+    finally:
+        bumble_conn = None
+        bumble_device = None
+        bumble_char = None
+        bumble_cm = None
+        _bluez_on()
+    if not silent:
+        respond({"disconnected": True})
+
+
 async def do_disconnect():
     global client
     if client:
@@ -229,6 +353,15 @@ async def process_command(line: str):
         address = cmd.get("address")
         if not address:
             respond({"error": "address required"})
+        elif cmd.get("char"):
+            # Explicit GATT profile (e.g. Phomemo D30): raw HCI, bypassing BlueZ discovery.
+            await do_connect_bumble(
+                address,
+                service=cmd.get("service"),
+                char=cmd.get("char"),
+                notify=cmd.get("notify"),
+                response=bool(cmd.get("response", False)),
+            )
         else:
             await do_connect(
                 address,
@@ -241,13 +374,20 @@ async def process_command(line: str):
         data = cmd.get("data")
         if not data:
             respond({"error": "data required"})
+        elif bumble_conn is not None:
+            await do_write_bumble(data, cmd.get("response"))
         else:
             wait = cmd.get("wait", True)
             expect = set(cmd["expect"]) if cmd.get("expect") else None
             await do_write(data, wait_response=wait, expect=expect, response=cmd.get("response"))
     elif action == "disconnect":
-        await do_disconnect()
+        if bumble_conn is not None:
+            await do_disconnect_bumble()
+        else:
+            await do_disconnect()
     elif action == "quit":
+        if bumble_conn is not None:
+            await do_disconnect_bumble(silent=True)
         await do_disconnect()
         return False
     elif action == "ping":
@@ -280,6 +420,8 @@ async def main():
             respond({"error": str(e)})
             break
 
+    if bumble_conn is not None:
+        await do_disconnect_bumble(silent=True)
     await do_disconnect()
 
 
