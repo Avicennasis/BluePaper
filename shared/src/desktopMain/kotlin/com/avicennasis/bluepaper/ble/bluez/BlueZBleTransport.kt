@@ -3,6 +3,7 @@ package com.avicennasis.bluepaper.ble.bluez
 import com.avicennasis.bluepaper.ble.BleTransport
 import com.avicennasis.bluepaper.ble.ConnectionState
 import com.avicennasis.bluepaper.ble.ScannedDevice
+import com.avicennasis.bluepaper.config.GattProfile
 import com.avicennasis.bluepaper.printer.PrinterException
 import com.avicennasis.bluepaper.printer.PrinterNotConnectedException
 import com.avicennasis.bluepaper.printer.PrinterProtocolException
@@ -37,8 +38,10 @@ class BlueZBleTransport : BleTransport {
     private val commandMutex = Mutex()
     private var notifyHandler: AbstractPropertiesChangedHandler? = null
 
-    override suspend fun connect(device: ScannedDevice) {
-        println("[BlueZBleTransport] connect() called for ${device.name} (${device.address})")
+    override suspend fun connect(device: ScannedDevice) = connect(device, null)
+
+    override suspend fun connect(device: ScannedDevice, gatt: GattProfile?) {
+        println("[BlueZBleTransport] connect() called for ${device.name} (${device.address}) gatt=$gatt")
         _connectionState.value = ConnectionState.CONNECTING
         responseChannel = Channel(Channel.UNLIMITED)
 
@@ -85,7 +88,12 @@ class BlueZBleTransport : BleTransport {
                 // Skip standard GATT characteristics (UUID starts with 0000)
                 val charProps = interfaces[BlueZPaths.GATT_CHARACTERISTIC_INTERFACE] ?: continue
                 val uuid = (charProps["UUID"]?.value as? String) ?: continue
-                if (uuid.startsWith("0000")) continue
+                val matches = if (gatt != null) {
+                    uuid.equals(gatt.writeCharUuid, ignoreCase = true)
+                } else {
+                    !uuid.startsWith("0000")
+                }
+                if (!matches) continue
 
                 foundCharPath = path.path
                 println("[BlueZBleTransport] Found characteristic: $uuid at $foundCharPath")
@@ -104,27 +112,30 @@ class BlueZBleTransport : BleTransport {
             )
             characteristic = gattChar
 
-            // Set up notification handler for PropertiesChanged signals
-            val charPath = foundCharPath
-            notifyHandler = object : AbstractPropertiesChangedHandler() {
-                override fun handle(signal: Properties.PropertiesChanged) {
-                    if (signal.path != charPath) return
-                    val props = signal.propertiesChanged ?: return
-                    val value = props["Value"]?.value
-                    if (value is ByteArray) {
-                        println("[BlueZBleTransport] Received notification: ${value.size} bytes")
-                        responseChannel.trySend(value)
+            // Niimbot answers on the same characteristic's notifications. Phomemo D30 (explicit
+            // gatt profile) is write-only, so skip notify setup for it.
+            if (gatt == null) {
+                val charPath = foundCharPath
+                notifyHandler = object : AbstractPropertiesChangedHandler() {
+                    override fun handle(signal: Properties.PropertiesChanged) {
+                        if (signal.path != charPath) return
+                        val props = signal.propertiesChanged ?: return
+                        val value = props["Value"]?.value
+                        if (value is ByteArray) {
+                            println("[BlueZBleTransport] Received notification: ${value.size} bytes")
+                            responseChannel.trySend(value)
+                        }
                     }
                 }
-            }
 
-            conn.addSigHandler(Properties.PropertiesChanged::class.java, notifyHandler)
+                conn.addSigHandler(Properties.PropertiesChanged::class.java, notifyHandler)
 
-            // Start notifications
-            withContext(Dispatchers.IO) {
-                gattChar.StartNotify()
+                // Start notifications
+                withContext(Dispatchers.IO) {
+                    gattChar.StartNotify()
+                }
+                println("[BlueZBleTransport] Started notifications")
             }
-            println("[BlueZBleTransport] Started notifications")
 
             _connectionState.value = ConnectionState.CONNECTED
             println("[BlueZBleTransport] Connection established successfully")
@@ -215,6 +226,19 @@ class BlueZBleTransport : BleTransport {
             val char = characteristic ?: throw PrinterNotConnectedException()
             val options = mapOf<String, Variant<*>>(
                 "type" to Variant("command"),
+            )
+            withContext(Dispatchers.IO) {
+                char.WriteValue(data, options)
+            }
+        }
+    }
+
+    override suspend fun writeBytes(data: ByteArray, withResponse: Boolean) {
+        println("[BlueZBleTransport] writeBytes: ${data.size} bytes, withResponse=$withResponse")
+        commandMutex.withLock {
+            val char = characteristic ?: throw PrinterNotConnectedException()
+            val options = mapOf<String, Variant<*>>(
+                "type" to Variant(if (withResponse) "request" else "command"),
             )
             withContext(Dispatchers.IO) {
                 char.WriteValue(data, options)

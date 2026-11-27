@@ -39,6 +39,27 @@ object DeviceRegistry {
             labelSizes = sizes(203, 30.0 to 15.0, 40.0 to 12.0, 50.0 to 14.0, 75.0 to 12.0, 109.0 to 12.5, maxHeightPx = 96),
             printheadPixels = 96, v4WhenSupported = true,
         ),
+        // Phomemo D30: 12 mm tape, 203 dpi, 96 dots across the head. Speaks Epson ESC/POS
+        // "GS v 0" raster over BLE GATT ff00/ff02 (write-with-response); no RFID/consumable auth.
+        DeviceConfig(
+            model = "d30", dpi = 203, maxDensity = DEFAULT_MAX_DENSITY,
+            rotation = -90, isV2 = false, maxWidthPx = 96,
+            // Tape widths 6/12/14/15 mm; the 12 mm head prints at most 96 dots, so 14/15 mm cap at 96.
+            labelSizes = sizes(
+                203,
+                30.0 to 6.0, 30.0 to 12.0, 30.0 to 14.0, 30.0 to 15.0,
+                40.0 to 12.0, 50.0 to 12.0,
+                maxHeightPx = 96,
+            ),
+            printheadPixels = 96,
+            protocol = PrinterProtocol.ESC_POS_RASTER,
+            gatt = GattProfile(
+                serviceUuid = "0000ff00-0000-1000-8000-00805f9b34fb",
+                writeCharUuid = "0000ff02-0000-1000-8000-00805f9b34fb",
+                notifyCharUuid = "0000ff03-0000-1000-8000-00805f9b34fb",
+                writeWithResponse = true,
+            ),
+        ),
         DeviceConfig(
             model = "b18", dpi = 203, maxDensity = DEFAULT_MAX_DENSITY,
             rotation = 0, isV2 = true, maxWidthPx = V2_MAX_WIDTH,

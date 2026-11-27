@@ -1,5 +1,6 @@
 package com.avicennasis.bluepaper.ble
 
+import com.avicennasis.bluepaper.config.GattProfile
 import com.avicennasis.bluepaper.printer.PrinterNotConnectedException
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,13 +17,15 @@ class DesktopTransport(
 
     private var active: BleTransport? = null
 
-    override suspend fun connect(device: ScannedDevice) {
+    override suspend fun connect(device: ScannedDevice) = connect(device, null)
+
+    override suspend fun connect(device: ScannedDevice, gatt: GattProfile?) {
         val target = if (device.transport == DeviceTransport.USB) usb else bluetooth
         active?.takeIf { it !== target }?.disconnect()
         active = null
         _connectionState.value = ConnectionState.CONNECTING
         try {
-            target.connect(device)
+            target.connect(device, gatt)
             active = target
             _connectionState.value = ConnectionState.CONNECTED
         } catch (e: Exception) {
@@ -46,4 +49,7 @@ class DesktopTransport(
 
     override suspend fun writeRaw(packet: NiimbotPacket) =
         (active ?: throw PrinterNotConnectedException()).writeRaw(packet)
+
+    override suspend fun writeBytes(data: ByteArray, withResponse: Boolean) =
+        (active ?: throw PrinterNotConnectedException()).writeBytes(data, withResponse)
 }
