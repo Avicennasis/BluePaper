@@ -300,7 +300,11 @@ async def do_write_bumble(hex_data, response=None):
     try:
         data = bytes.fromhex(hex_data.replace(" ", ""))
         wr = bumble_with_response if response is None else bool(response)
-        await bumble_char.write_value(data, with_response=wr)
+        # The client hands us large chunks (e.g. 128 bytes); split to the ATT MTU.
+        mtu = getattr(bumble_conn.gatt_client, "mtu", 23) or 23
+        step = max(1, mtu - 3)
+        for i in range(0, len(data), step):
+            await bumble_char.write_value(data[i:i + step], with_response=wr)
         respond({"ok": True})
     except Exception as e:
         respond({"error": str(e) or type(e).__name__})
