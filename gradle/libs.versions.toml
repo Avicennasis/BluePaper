@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.4.21"
 compose-multiplatform = "1.12.2"
-agp = "9.5.2"
+agp = "9.5.3"
 coroutines = "1.11.0"
 kable = "0.46.0"
 serialization = "1.13.0"
