@@ -55,8 +55,16 @@ class DeviceConfigTest {
     }
 
     @Test
-    fun d110mIsHighDpi() {
-        assertEquals(300, DeviceRegistry.get("d110_m")!!.dpi)
+    fun d110mMatchesThePrinter() {
+        // NiimBlue's model database (id 2320) and its D110M v4 test both report a
+        // 203-dpi class printer with a 96-dot printhead; it speaks protocol v4.
+        val config = DeviceRegistry.get("d110_m")!!
+        assertEquals(203, config.dpi)
+        assertEquals(96, config.printheadPixels)
+        assertTrue(config.v4WhenSupported)
+        for (size in config.labelSizes) {
+            assertTrue(size.heightPx <= 96, "${size.displayName} must fit the 96-dot head, got ${size.heightPx}")
+        }
     }
 
     @Test

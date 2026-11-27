@@ -18,7 +18,8 @@ class BlueZBleTransportTest {
 
         val transport = DesktopBleFactory.createTransport()
         assertNotNull(transport)
-        assertTrue(transport is BleakBleTransport)
+        // Routes Bluetooth devices to BleakBleTransport and USB devices to SerialTransport.
+        assertTrue(transport is com.avicennasis.bluepaper.ble.DesktopTransport)
     }
 
     @Test

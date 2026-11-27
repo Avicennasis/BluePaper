@@ -12,9 +12,12 @@ class KableBleScanner(
 
     override fun scan(namePrefix: String): Flow<ScannedDevice> {
         val scanner = Scanner {
-            filters {
-                match {
-                    name = Filter.Name.Prefix(namePrefix)
+            // "" means every named device; ScannerState filters to supported printers.
+            if (namePrefix.isNotEmpty()) {
+                filters {
+                    match {
+                        name = Filter.Name.Prefix(namePrefix)
+                    }
                 }
             }
         }

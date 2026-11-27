@@ -20,6 +20,7 @@ dbus-java-core = { module = "com.github.hypfvieh:dbus-java-core", version.ref = 
 dbus-java-transport-native-unixsocket = { module = "com.github.hypfvieh:dbus-java-transport-native-unixsocket", version.ref = "dbus-java" }
 dbus-java-transport-jnr-unixsocket = { module = "com.github.hypfvieh:dbus-java-transport-jnr-unixsocket", version.ref = "dbus-java" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version = "2.0.20" }
+jserialcomm = { module = "com.fazecast:jSerialComm", version = "2.11.4" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

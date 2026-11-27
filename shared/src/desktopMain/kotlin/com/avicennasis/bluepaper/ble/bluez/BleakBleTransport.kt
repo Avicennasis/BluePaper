@@ -7,6 +7,8 @@ import com.avicennasis.bluepaper.printer.PrinterException
 import com.avicennasis.bluepaper.printer.PrinterNotConnectedException
 import com.avicennasis.bluepaper.printer.PrinterTimeoutException
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
+import com.avicennasis.bluepaper.protocol.PrinterErrors
+import com.avicennasis.bluepaper.protocol.ResponseCodes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -160,9 +162,12 @@ class BleakBleTransport : BleTransport {
         val hexData = data.joinToString("") { "%02x".format(it) }
         println("[BleakBleTransport] sendCommand: type=0x${packet.type.toString(16)}, data=$hexData")
 
+        val expected = ResponseCodes.expectedReplies(packet)
         val cmd = buildJsonObject {
             put("cmd", "write")
             put("data", hexData)
+            // Only these reply types answer this request; the bridge skips anything else.
+            if (expected != null) put("expect", JsonArray(expected.map { JsonPrimitive(it) }))
         }
 
         val result = commandMutex.withLock { sendCommand(cmd) }
@@ -184,7 +189,12 @@ class BleakBleTransport : BleTransport {
         val responseBytes = responseHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         println("[BleakBleTransport] Response: $responseHex")
 
-        return NiimbotPacket.fromBytes(responseBytes)
+        val reply = NiimbotPacket.fromBytes(responseBytes)
+        if (reply.type == ResponseCodes.PRINT_ERROR) {
+            val code = reply.data.firstOrNull()?.let { it.toInt() and 0xFF } ?: -1
+            throw PrinterException(PrinterErrors.describe(code))
+        }
+        return reply
     }
 
     override suspend fun writeRaw(packet: NiimbotPacket) {

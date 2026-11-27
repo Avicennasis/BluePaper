@@ -9,7 +9,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ScannerState(
@@ -25,6 +26,9 @@ class ScannerState(
 
     val connectionState: StateFlow<ConnectionState> = transport.connectionState
 
+    private val _connectedDevice = MutableStateFlow<ScannedDevice?>(null)
+    val connectedDevice: StateFlow<ScannedDevice?> = _connectedDevice
+
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
@@ -34,22 +38,47 @@ class ScannerState(
         if (_isScanning.value) return
         scanJob?.cancel()
         _isScanning.value = true
-        _devices.value = emptyList()
+        // Paired printers stay listed — they may not advertise, so a scan can't re-find them.
+        _devices.update { current -> current.filter { it.paired } }
         _error.value = null
 
         scanJob = scope.launch {
             try {
-                val prefixes = DeviceRegistry.scanPrefixes()
-                prefixes.map { scanner.scan(it) }.merge().collect { device ->
-                    val current = _devices.value
-                    if (current.none { it.address == device.address }) {
-                        _devices.value = current + device
-                    }
-                }
+                // ONE discovery session filtered here. BlueZ allows a single session per
+                // client (concurrent per-prefix scans got only the first prefix's results)
+                // and Android throttles scanners started in quick succession.
+                scanner.scan("")
+                    .filter { DeviceRegistry.isSupportedPrinterName(it.name) }
+                    .collect { addOrMerge(it) }
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {
                 _isScanning.value = false
+            }
+        }
+    }
+
+    /** Lists printers the OS already has paired, without needing a scan. */
+    fun loadPairedDevices() {
+        scope.launch {
+            try {
+                scanner.pairedDevices()
+                    .filter { DeviceRegistry.isSupportedPrinterName(it.name) }
+                    .forEach { addOrMerge(it.copy(paired = true)) }
+            } catch (e: Exception) {
+                _error.value = "Could not list paired printers: ${e.message}"
+            }
+        }
+    }
+
+    private fun addOrMerge(device: ScannedDevice) {
+        _devices.update { current ->
+            val index = current.indexOfFirst { it.address == device.address }
+            if (index < 0) {
+                current + device
+            } else {
+                val existing = current[index]
+                current.toMutableList().also { it[index] = existing.copy(paired = existing.paired || device.paired) }
             }
         }
     }
@@ -65,6 +94,7 @@ class ScannerState(
             try {
                 _error.value = null
                 transport.connect(device)
+                _connectedDevice.value = device
             } catch (e: Exception) {
                 _error.value = "Connection failed: ${e.message}"
             }

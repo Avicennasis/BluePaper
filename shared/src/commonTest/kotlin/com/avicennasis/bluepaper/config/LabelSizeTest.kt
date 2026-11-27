@@ -31,4 +31,14 @@ class LabelSizeTest {
         assertEquals(871, size.widthPx)
         assertEquals(99, size.heightPx)
     }
+
+    @Test
+    fun crossHeadSizeIsCappedAtThePrinthead() {
+        // A 15 mm label is wider than a 12 mm (96-dot) printhead; rows wider than the head
+        // printed blank on a D110_M. The name keeps the physical label size.
+        val size = LabelSize(widthMm = 30.0, heightMm = 15.0, dpi = 203, maxHeightPx = 96)
+        assertEquals(239, size.widthPx)
+        assertEquals(96, size.heightPx)
+        assertEquals("30x15mm", size.displayName)
+    }
 }

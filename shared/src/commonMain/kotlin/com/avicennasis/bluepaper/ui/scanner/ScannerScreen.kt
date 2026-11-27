@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.avicennasis.bluepaper.ble.ConnectionState
+import com.avicennasis.bluepaper.ble.DeviceTransport
 
 @Composable
 fun ScannerScreen(
@@ -23,6 +24,11 @@ fun ScannerScreen(
     val isScanning by state.isScanning.collectAsState()
     val connectionState by state.connectionState.collectAsState()
     val error by state.error.collectAsState()
+
+    // Printers already paired with this computer show up immediately — no scan needed.
+    LaunchedEffect(Unit) {
+        state.loadPairedDevices()
+    }
 
     LaunchedEffect(connectionState) {
         if (connectionState == ConnectionState.CONNECTED) {
@@ -97,7 +103,14 @@ fun ScannerScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(device.name, style = MaterialTheme.typography.titleMedium)
-                                Text(device.address, style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    when {
+                                        device.transport == DeviceTransport.USB -> "${device.address} · USB"
+                                        device.paired -> "${device.address} · Paired"
+                                        else -> device.address
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
                             }
                             Text(
                                 "${device.rssi} dBm",

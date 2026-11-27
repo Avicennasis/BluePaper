@@ -8,8 +8,11 @@ object CommandBuilder {
     fun getRfid(): NiimbotPacket =
         NiimbotPacket(RequestCode.GET_RFID.code, byteArrayOf(0x01))
 
-    fun heartbeat(): NiimbotPacket =
-        NiimbotPacket(RequestCode.HEARTBEAT.code, byteArrayOf(0x01))
+    fun heartbeat(): NiimbotPacket = heartbeat(type = 1)
+
+    /** Heartbeat of the given type; type 4 returns the 0xD9 reply with lid/labels/RFID state. */
+    fun heartbeat(type: Int): NiimbotPacket =
+        NiimbotPacket(RequestCode.HEARTBEAT.code, byteArrayOf(type.toByte()))
 
     fun setLabelType(n: Int): NiimbotPacket {
         require(n in 1..3) { "Label type must be 1-3, got $n" }
@@ -85,4 +88,57 @@ object CommandBuilder {
         header[5] = 0x01
         return NiimbotPacket(IMAGE_DATA_TYPE, header + lineData)
     }
+
+    // ---- Protocol v4 (NiimBlue's D110M_V4 print task; layouts follow niimbluelib's PacketGenerator) ----
+
+    /** Connect handshake; the reply's first byte is 3 when the printer can report its protocol version. */
+    fun connect(): NiimbotPacket = NiimbotPacket(RequestCode.CONNECT.code, byteArrayOf(0x01))
+
+    fun printerStatusData(): NiimbotPacket = NiimbotPacket(RequestCode.PRINTER_STATUS_DATA.code, byteArrayOf(0x01))
+
+    /** printStart9b: total pages, 4 reserved, page colour (0 = single), speed, flag. */
+    fun startPrintV4(totalPages: Int): NiimbotPacket {
+        require(totalPages in 1..65535) { "Total pages must be 1-65535, got $totalPages" }
+        return NiimbotPacket(RequestCode.START_PRINT.code, u16(totalPages) + ByteArray(7))
+    }
+
+    /** setPageSize13b: rows, cols, copies, cut height, cut type, 0, send-all, part height. */
+    fun setPageSizeV4(rows: Int, cols: Int, copies: Int): NiimbotPacket =
+        NiimbotPacket(RequestCode.SET_DIMENSION.code, u16(rows) + u16(cols) + u16(copies) + ByteArray(7))
+
+    /** One bitmap row: y, black-pixel counts (see [pixelCounts]), repeat count, row bits. */
+    fun bitmapRowV4(y: Int, lineData: ByteArray, printheadPixels: Int): NiimbotPacket {
+        require(lineData.size <= 249) { "Image row data too large: ${lineData.size} bytes" }
+        return NiimbotPacket(
+            RequestCode.PRINT_BITMAP_ROW.code,
+            u16(y) + pixelCounts(lineData, printheadPixels) + byteArrayOf(0x01) + lineData,
+        )
+    }
+
+    /** A run of blank rows starting at [y]. */
+    fun emptyRow(y: Int, repeats: Int): NiimbotPacket =
+        NiimbotPacket(RequestCode.PRINT_EMPTY_ROW.code, u16(y) + byteArrayOf(repeats.toByte()))
+
+    /**
+     * Black-pixel counts, as niimbluelib's countPixelsForBitmapPacket ("auto" mode): when the row
+     * fits in the printhead, one count per printhead third; otherwise the total as [0, low, high].
+     */
+    internal fun pixelCounts(lineData: ByteArray, printheadPixels: Int): ByteArray {
+        val chunkSize = printheadPixels / 8 / 3
+        val split = chunkSize > 0 && lineData.size <= chunkSize * 3
+        val parts = IntArray(3)
+        var total = 0
+        lineData.forEachIndexed { index, byte ->
+            val black = (byte.toInt() and 0xFF).countOneBits()
+            total += black
+            if (split) parts[index / chunkSize] += black
+        }
+        return if (split) {
+            byteArrayOf(parts[0].toByte(), parts[1].toByte(), parts[2].toByte())
+        } else {
+            byteArrayOf(0x00, (total and 0xFF).toByte(), (total shr 8).toByte())
+        }
+    }
+
+    private fun u16(n: Int) = byteArrayOf((n shr 8).toByte(), (n and 0xFF).toByte())
 }

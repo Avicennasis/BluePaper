@@ -13,6 +13,10 @@ enum class RequestCode(val code: Int) {
     SET_DIMENSION(0x13),
     SET_QUANTITY(0x15),
     GET_PRINT_STATUS(0xA3),
+    CONNECT(0xC1),
+    PRINTER_STATUS_DATA(0xA5),
+    PRINT_BITMAP_ROW(0x85),
+    PRINT_EMPTY_ROW(0x84),
     ;
 
     companion object {

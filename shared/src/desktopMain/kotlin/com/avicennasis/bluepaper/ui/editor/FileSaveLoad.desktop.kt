@@ -20,21 +20,20 @@ actual fun FileSaveEffect(
         if (!trigger) return@LaunchedEffect
         try {
             // Show the Swing dialog on the EDT — JFileChooser is not thread-safe
-            var selectedFile: File? = null
-            SwingUtilities.invokeAndWait {
+            val file: File? = runOnEdt {
                 val chooser = JFileChooser().apply {
                     dialogTitle = "Save Label Design"
-                    this.selectedFile = File(defaultName)
+                    selectedFile = File(defaultName)
                     fileFilter = FileNameExtensionFilter("BluePaper Label (.bpl)", "bpl")
                 }
                 if (chooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
-                    var file = chooser.selectedFile
-                    if (!file.name.endsWith(".bpl")) file = File(file.absolutePath + ".bpl")
-                    selectedFile = file
+                    val chosen = chooser.selectedFile
+                    if (chosen.name.endsWith(".bpl")) chosen else File(chosen.absolutePath + ".bpl")
+                } else {
+                    null
                 }
             }
             // Perform file I/O on the IO dispatcher
-            val file = selectedFile
             if (file != null) {
                 withContext(Dispatchers.IO) {
                     file.writeText(content)
@@ -57,18 +56,14 @@ actual fun FileLoadEffect(
         if (!trigger) return@LaunchedEffect
         try {
             // Show the Swing dialog on the EDT — JFileChooser is not thread-safe
-            var selectedFile: File? = null
-            SwingUtilities.invokeAndWait {
+            val file: File? = runOnEdt {
                 val chooser = JFileChooser().apply {
                     dialogTitle = "Open Label Design"
                     fileFilter = FileNameExtensionFilter("BluePaper Label (.bpl)", "bpl")
                 }
-                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                    selectedFile = chooser.selectedFile
-                }
+                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
             }
             // Perform file I/O on the IO dispatcher
-            val file = selectedFile
             if (file != null) {
                 val json = withContext(Dispatchers.IO) {
                     file.readText()
@@ -81,3 +76,18 @@ actual fun FileLoadEffect(
         onDone()
     }
 }
+
+/**
+ * Runs [block] on the Swing EDT and returns its result. Compose Desktop's LaunchedEffect
+ * already runs ON the EDT, where SwingUtilities.invokeAndWait throws
+ * "Cannot call invokeAndWait from the event dispatcher thread" — so run inline there.
+ * (Modal JFileChooser dialogs pump events themselves, so blocking the EDT here is fine.)
+ */
+@Suppress("UNCHECKED_CAST")
+internal fun <T> runOnEdt(block: () -> T): T {
+    if (SwingUtilities.isEventDispatchThread()) return block()
+    var result: Any? = null
+    SwingUtilities.invokeAndWait { result = block() }
+    return result as T
+}
+

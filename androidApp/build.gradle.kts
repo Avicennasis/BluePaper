@@ -6,6 +6,10 @@ plugins {
 }
 
 kotlin {
+    // Pin the toolchain like :shared and :desktopApp — otherwise
+    // compileDebugJavaWithJavac inherits Gradle's own JVM, which may be a JRE.
+    jvmToolchain(17)
+
     androidTarget()
 
     sourceSets {

@@ -7,6 +7,12 @@ plugins {
 }
 
 kotlin {
+    // Pin the toolchain (as desktopApp does) so the JVM compile tasks don't
+    // inherit whatever JVM runs Gradle — on a box whose default `java` is a
+    // JRE (no javac), compileDesktopMainJava fails with "does not provide the
+    // required capabilities: [JAVA_COMPILER]". JDK 17 matches README and CI.
+    jvmToolchain(17)
+
     androidTarget()
 
     jvm("desktop")
@@ -53,6 +59,7 @@ kotlin {
                 implementation("com.google.zxing:core:3.5.4")
                 implementation(libs.dbus.java.core)
                 implementation(libs.dbus.java.transport.jnr.unixsocket)
+                implementation(libs.jserialcomm)
                 runtimeOnly(libs.slf4j.simple)
             }
         }

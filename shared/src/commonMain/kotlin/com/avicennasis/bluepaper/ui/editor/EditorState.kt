@@ -128,10 +128,23 @@ class EditorState(
 
     fun addImageElement(bitmap: ImageBitmap) {
         saveUndoSnapshot()
+        // Imported pictures are usually far larger than a label (a 2528x1696 scan vs a
+        // 239x119 px label), so shrink to fit keeping the aspect ratio — never upscale,
+        // which would blur small logos — and centre it.
+        val label = _selectedLabelSize.value
+        val fit = if (bitmap.width > 0 && bitmap.height > 0) {
+            minOf(1f, label.widthPx.toFloat() / bitmap.width, label.heightPx.toFloat() / bitmap.height)
+        } else {
+            1f
+        }
+        val width = bitmap.width * fit
+        val height = bitmap.height * fit
         val el = LabelElement.ImageElement(
             id = newId("img"),
-            width = bitmap.width.toFloat(),
-            height = bitmap.height.toFloat(),
+            x = (label.widthPx - width) / 2f,
+            y = (label.heightPx - height) / 2f,
+            width = width,
+            height = height,
             bitmap = bitmap,
         )
         _elements.value = _elements.value + el
@@ -448,6 +461,11 @@ class EditorState(
         _density.value = _density.value.coerceAtMost(config.maxDensity)
     }
 
+    /** Switch to the model matching a connected printer's name; unknown names keep the current model. */
+    fun selectModelForPrinter(printerName: String) {
+        DeviceRegistry.modelForName(printerName)?.let { selectModel(it) }
+    }
+
     fun selectLabelSize(size: LabelSize) {
         _selectedLabelSize.value = size
         // Save undo before clamping so the user can revert the label size change
@@ -519,13 +537,13 @@ class EditorState(
 
         scope.launch {
             try {
-                client.print(
+                client.printJob(
+                    config = config,
                     imageRows = imageRows,
                     width = width,
                     height = height,
                     density = dens,
                     quantity = qty,
-                    isV2 = config.isV2,
                     onProgress = { completed, total ->
                         _printProgress.value = PrintProgress(completed, total, true)
                     },

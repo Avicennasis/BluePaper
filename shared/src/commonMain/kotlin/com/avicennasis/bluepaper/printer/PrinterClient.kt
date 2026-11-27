@@ -1,12 +1,15 @@
 package com.avicennasis.bluepaper.printer
 
 import com.avicennasis.bluepaper.ble.BleTransport
+import com.avicennasis.bluepaper.config.DeviceConfig
 import com.avicennasis.bluepaper.model.HeartbeatResponse
+import com.avicennasis.bluepaper.model.HeartbeatStatus
 import com.avicennasis.bluepaper.model.PrintStatus
 import com.avicennasis.bluepaper.model.RFIDResponse
 import com.avicennasis.bluepaper.protocol.CommandBuilder
 import com.avicennasis.bluepaper.protocol.InfoEnum
 import com.avicennasis.bluepaper.protocol.NiimbotPacket
+import com.avicennasis.bluepaper.protocol.ProtocolVersion
 import kotlinx.coroutines.delay
 
 private const val END_PAGE_MAX_RETRIES = 20
@@ -188,6 +191,116 @@ class PrinterClient(private val transport: BleTransport) {
                     endPagePrint()
                 } catch (_: Exception) { }
             }
+            if (printStarted) {
+                try { endPrint() } catch (_: Exception) { }
+            }
+            throw e
+        }
+    }
+
+    // ---- Protocol v4 ----
+
+    /** Connect handshake; returns the printer's protocol version (0 when it can't say). */
+    suspend fun negotiateProtocolVersion(): Int {
+        val reply = transport.sendCommand(CommandBuilder.connect())
+        return when (reply.data.firstOrNull()?.toInt()) {
+            2 -> 1
+            3 -> ProtocolVersion.fromStatusData(transport.sendCommand(CommandBuilder.printerStatusData()).data)
+            else -> 0
+        }
+    }
+
+    /**
+     * Prints with the sequence [config]'s printer needs. A D110_M on firmware 4.x acks every
+     * legacy command and reports 100% progress but never feeds or burns a label — it only
+     * prints with the protocol-v4 sequence.
+     */
+    suspend fun printJob(
+        config: DeviceConfig,
+        imageRows: List<ByteArray>,
+        width: Int,
+        height: Int,
+        density: Int = DEFAULT_DENSITY,
+        quantity: Int,
+        onProgress: ((Int, Int) -> Unit)? = null,
+    ) {
+        val version = if (config.v4WhenSupported) {
+            try {
+                negotiateProtocolVersion()
+            } catch (e: PrinterException) {
+                println("[PrinterClient] Protocol negotiation failed (${e.message}); using legacy sequence")
+                0
+            }
+        } else {
+            0
+        }
+        println("[PrinterClient] ${config.model}: protocol v$version")
+        if (version >= 4) {
+            // Check like the official app does: a D110_M with no readable RFID tag accepts the
+            // job, reports success and feeds a blank label. Undecodable replies don't block.
+            val status = try {
+                heartbeatStatus()
+            } catch (e: PrinterException) {
+                println("[PrinterClient] Status check failed (${e.message}); printing anyway")
+                null
+            }
+            println("[PrinterClient] status: $status")
+            status?.let { notReadyReason(it) }?.let { throw PrinterNotReadyException(it) }
+            printV4(imageRows, width, density, quantity, config.printheadPixels, onProgress)
+        } else {
+            print(imageRows, width, height, density, quantity, config.isV2, onProgress)
+        }
+    }
+
+    /** Lid / labels / RFID state from heartbeat type 4. */
+    suspend fun heartbeatStatus(): HeartbeatStatus =
+        HeartbeatStatus.fromReply(transport.sendCommand(CommandBuilder.heartbeat(type = 4)))
+
+    internal fun notReadyReason(status: HeartbeatStatus): String? = when {
+        status.lidClosed == false -> "The printer lid is open — close it and try again."
+        status.paperInserted == false -> "No labels detected — load a label roll and try again."
+        status.rfidRead == false ->
+            "The printer can't read the label roll's RFID tag, so it won't print (it would only feed " +
+                "a blank label). Use a NIIMBOT roll whose tag the printer can read."
+        else -> null
+    }
+
+    /** NiimBlue's D110M_V4 print task. [width] is the row width in pixels (padded to 8 here). */
+    suspend fun printV4(
+        imageRows: List<ByteArray>,
+        width: Int,
+        density: Int = DEFAULT_DENSITY,
+        quantity: Int,
+        printheadPixels: Int,
+        onProgress: ((Int, Int) -> Unit)? = null,
+    ) {
+        var printStarted = false
+        try {
+            setLabelType(DEFAULT_LABEL_TYPE)
+            setLabelDensity(density)
+            transport.sendCommand(CommandBuilder.startPrintV4(quantity))
+            printStarted = true
+            // The official app sends a status request right after PrintStart without waiting for it.
+            transport.writeRaw(CommandBuilder.getPrintStatus())
+
+            val cols = (width + 7) / 8 * 8
+            transport.sendCommand(CommandBuilder.setPageSizeV4(rows = imageRows.size, cols = cols, copies = quantity))
+            println("[PrinterClient] v4 page ${imageRows.size} rows x $cols cols, quantity=$quantity")
+
+            for ((y, row) in imageRows.withIndex()) {
+                val packet = if (row.all { it == 0.toByte() }) {
+                    CommandBuilder.emptyRow(y, repeats = 1)
+                } else {
+                    CommandBuilder.bitmapRowV4(y, row, printheadPixels)
+                }
+                transport.writeRaw(packet)
+            }
+
+            waitForPagePrintEnd()
+            waitForPrintComplete(quantity, onProgress)
+            endPrint()
+            println("[PrinterClient] v4 endPrint")
+        } catch (e: Exception) {
             if (printStarted) {
                 try { endPrint() } catch (_: Exception) { }
             }
